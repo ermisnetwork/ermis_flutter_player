@@ -1,7 +1,7 @@
 name: ermis_stream_player
 description: ""
-version: 0.0.1+2
-homepage:
+version: 0.0.2
+homepage: https://github.com/ermisnetwork/ermis_flutter_player.git
 
 environment:
   sdk: ^3.7.2

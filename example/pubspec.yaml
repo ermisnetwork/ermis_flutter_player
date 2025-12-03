@@ -17,7 +17,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  fmp4_stream_player:
+  ermis_stream_player:
     # When depending on this package from a real application you should use:
     #   fmp4_stream_player: ^x.y.z
     # See https://dart.dev/tools/pub/dependencies#version-constraints
