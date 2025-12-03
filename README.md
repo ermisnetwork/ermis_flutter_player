@@ -11,13 +11,13 @@ Features:
 Installation:
 
 1. Thêm plugin vào pubspec.yaml
-
+```
 dependencies:
   ermis_stream_flutter_player:
     git:
       url: https://github.com/ermisnetwork/ermis_flutter_player.git
       ref: main
-
+```
 2. Chạy:
 flutter pub get
 
@@ -59,4 +59,5 @@ Notes:
 
 License:
 MIT License © 2025 Ermis Network
+
 
