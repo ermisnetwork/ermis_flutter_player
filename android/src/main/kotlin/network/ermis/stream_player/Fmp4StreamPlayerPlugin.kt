@@ -62,8 +62,6 @@ class Fmp4StreamPlayerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             }
 
             "stopStreaming" -> {
-                val intent = Intent(appContext, FMP4StreamService::class.java)
-                appContext.stopService(intent)
                 FMP4StreamPlayerManager.stopStream()
                 result.success(true)
             }
