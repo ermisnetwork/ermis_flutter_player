@@ -1,22 +1,39 @@
 PODS:
   - Flutter (1.0.0)
+  - fmp4_stream_player (0.0.1):
+    - Flutter
+    - Starscream (~> 4.0)
+    - Swifter (~> 1.5.0)
   - integration_test (0.0.1):
     - Flutter
+  - Starscream (4.0.8)
+  - Swifter (1.5.0)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - fmp4_stream_player (from `.symlinks/plugins/fmp4_stream_player/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
+
+SPEC REPOS:
+  trunk:
+    - Starscream
+    - Swifter
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  fmp4_stream_player:
+    :path: ".symlinks/plugins/fmp4_stream_player/ios"
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
 
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  fmp4_stream_player: b1b5c7120e44f79288904a1e29b7ccbc81f497fc
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  Starscream: 19b5533ddb925208db698f0ac508a100b884a1b9
+  Swifter: e71dd674404923d7f03ebb03f3f222d1c570bc8e
 
-PODFILE CHECKSUM: 6e700dec67e6deac9b1c69bb14c49a2217a12d15
+PODFILE CHECKSUM: be2d7f62acc6934f50b12b4413630b2ce739f54f
 
 COCOAPODS: 1.16.2
