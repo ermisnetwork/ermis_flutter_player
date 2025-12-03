@@ -26,9 +26,8 @@ class _MyAppState extends State<MyApp> {
     });
 
     final success = await ErmisStreamPlayerSDK.startStreaming(
-      streamId: "a8f9e76b-50bd-4e38-8707-2a25e3de92e5",
-      token:
-          "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiOGY5OTU5YzYtMDEzYS00ZDIwLTlkYjUtZGNjN2NjNjE1NzA0IiwiY2xpZW50X2lkIjoiYmE3Mzk4YzQtNjdhZi00YzgyLWIyZjMtNDZiOWNhM2Y4MTExIiwiYXBwX25hbWUiOiJFcm1pcy1zdHJlYW1pbmciLCJleHAiOjE3NjQ4MzEzMDIyMTksInJvbGVfbmFtZSI6ImNsaWVudF9hZG1pbiIsInBlcm1pc3Npb25zIjpbMSwyLDMsNCw1LDksMTEsMTIsMTMsMTQsMTUsMTYsMTcsMTgsMTksMjAsMjEsMjIsMjMsMjQsMjUsMjYsMjcsMjgsMjksMzAsMzEsMzIsMzMsMzQsMzUsMzYsMzcsMzgsMzksNDAsNDUsNDcsNDgsNDldfQ.QaMVbEaUQkHCPO-8jEtbPNH5DhniIUC5UL0YFnE22m4",
+      streamId: "",
+      token: "",
     );
 
     setState(() {
