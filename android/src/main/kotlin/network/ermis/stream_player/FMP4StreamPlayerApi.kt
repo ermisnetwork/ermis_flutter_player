@@ -1,4 +1,4 @@
-package com.yourcompany.fmp4_stream_player
+package network.ermis.stream_player
 
 import android.util.Log
 import okhttp3.*

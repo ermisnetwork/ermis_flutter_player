@@ -1,4 +1,4 @@
-package com.yourcompany.fmp4_stream_player
+package network.ermis.stream_player
 
 import android.content.Context
 import android.net.Uri
