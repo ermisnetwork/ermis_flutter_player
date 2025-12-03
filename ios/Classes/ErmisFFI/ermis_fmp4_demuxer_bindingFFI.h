@@ -554,19 +554,19 @@ void ffi_ermis_fmp4_demuxer_binding_rust_future_complete_void(uint64_t handle, R
 #ifndef UNIFFI_FFIDEF_UNIFFI_ERMIS_FMP4_DEMUXER_BINDING_CHECKSUM_METHOD_DEMUXER_PROCESS_DATA
 #define UNIFFI_FFIDEF_UNIFFI_ERMIS_FMP4_DEMUXER_BINDING_CHECKSUM_METHOD_DEMUXER_PROCESS_DATA
 uint16_t uniffi_ermis_fmp4_demuxer_binding_checksum_method_demuxer_process_data(void
-    
+
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_ERMIS_FMP4_DEMUXER_BINDING_CHECKSUM_CONSTRUCTOR_DEMUXER_NEW
 #define UNIFFI_FFIDEF_UNIFFI_ERMIS_FMP4_DEMUXER_BINDING_CHECKSUM_CONSTRUCTOR_DEMUXER_NEW
 uint16_t uniffi_ermis_fmp4_demuxer_binding_checksum_constructor_demuxer_new(void
-    
+
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_ERMIS_FMP4_DEMUXER_BINDING_UNIFFI_CONTRACT_VERSION
 #define UNIFFI_FFIDEF_FFI_ERMIS_FMP4_DEMUXER_BINDING_UNIFFI_CONTRACT_VERSION
 uint32_t ffi_ermis_fmp4_demuxer_binding_uniffi_contract_version(void
-    
+
 );
 #endif
 

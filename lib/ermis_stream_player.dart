@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class Fmp4StreamPlayerSdk {
+class ErmisStreamPlayerSDK {
   static const MethodChannel _channel = MethodChannel('fmp4_stream_player');
 
   static Future<bool> startStreaming({

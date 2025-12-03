@@ -1,228 +1,757 @@
-import Flutter
-import UIKit
-import AVFoundation
-import Starscream
-
-typealias StarscreamWebSocket = Starscream.WebSocket
-
-
-public class Fmp4StreamPlayerPlugin: NSObject, FlutterPlugin {
-    private weak var playerViewController: Fmp4PlayerViewController?
-
-    public static func register(with registrar: FlutterPluginRegistrar) {
-        // Method channel (global for plugin)
-        let channel = FlutterMethodChannel(
-            name: "fmp4_stream_player",
-            binaryMessenger: registrar.messenger()
-        )
-
-        let instance = Fmp4StreamPlayerPlugin()
-        registrar.addMethodCallDelegate(instance, channel: channel)
-
-        // Platform view factory (id: fmp4_stream_player_view)
-        let factory = Fmp4StreamPlayerViewFactory(messenger: registrar.messenger(), plugin: instance)
-        registrar.register(factory, withId: "fmp4_stream_player_view")
-    }
-
-    public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        switch call.method {
-        case "startStreaming":
-            guard let args = call.arguments as? [String: Any],
-                  let streamId = args["streamId"] as? String else {
-                result(FlutterError(code: "INVALID_ARGS", message: "Missing streamId", details: nil))
-                return
-            }
-            let token = args["token"] as? String
-
-            // Configure codec URL + token. You can implement either static wrapper or instance method.
-            // If you implemented CodecSwift.shared.setUrlForId(_:token:), call it. Otherwise use static attachId.
-            if let setUrlSelector = CodecSwift.shared as CodecSwift? {
-                // Prefer instance setter if you added it
-                if let _ = (CodecSwift.shared as AnyObject).setValue(nil, forKey: "") as Void? {
-                    // no-op, keep to silence unused branch
-                }
-            }
-
-            // Try to call instance method setUrlForId if exists, else fallback to static attachId
-            if CodecSwift.shared.responds(to: Selector(("setUrlForId:token:"))) {
-                // If you added func setUrlForId(_:token:), it will be used.
-                CodecSwift.shared.perform(Selector(("setUrlForId:token:")), with: streamId, with: token)
-            } else {
-                // Fallback to existing static API
-                CodecSwift.attachId(Id: streamId)
-                // If you need token in header, ensure CodecSwift has a way to store it (e.g., shared.authToken)
-                if let token = token {
-                    // try to set authToken property if exists
-                    if CodecSwift.shared.responds(to: Selector(("setAuthToken:"))) {
-                        CodecSwift.shared.perform(Selector(("setAuthToken:")), with: token)
-                    } else {
-                        // If no property, please add support in CodecSwift to accept token
-                        print("⚠️ Warning: CodecSwift has no API to accept token - please add setUrlForId(_:token:) or authToken property")
-                    }
-                }
-            }
-
-            // Start websocket on main thread
-            DispatchQueue.main.async {
-                CodecSwift.shared.startWebSocket()
-            }
-
-            print("🚀 startStreaming requested for id: \(streamId)")
-            result(true)
-
-        case "stopStreaming":
-            DispatchQueue.main.async {
-                CodecSwift.shared.stopWebSocket()
-                // flush view layers if any
-                self.playerViewController?.stopPlayback()
-            }
-            result(true)
-
-        case "pauseView":
-            // Pause render synchronizer if exposed
-            if let _ = Optional(()) {
-                CodecSwift.synchro.setRate(0.0, time: CMTime.invalid)
-            }
-            result(true)
-
-        case "resumeView":
-            if let _ = Optional(()) {
-                CodecSwift.synchro.setRate(1.0, time: CMTime.invalid)
-            }
-            result(true)
-
-        default:
-            result(FlutterMethodNotImplemented)
-        }
-    }
-
-    // Called from factory when view controller created
-    func setPlayerViewController(_ controller: Fmp4PlayerViewController) {
-        self.playerViewController = controller
-    }
-}
-
-// MARK: - Platform View Factory
-
-class Fmp4StreamPlayerViewFactory: NSObject, FlutterPlatformViewFactory {
-    private let messenger: (FlutterBinaryMessenger & NSObjectProtocol)
-    private weak var plugin: Fmp4StreamPlayerPlugin?
-
-    init(messenger: FlutterBinaryMessenger, plugin: Fmp4StreamPlayerPlugin) {
-        self.messenger = messenger
-        self.plugin = plugin
-        super.init()
-    }
-
-    // Create the platform view
-    func create(
-        withFrame frame: CGRect,
-        viewIdentifier viewId: Int64,
-        arguments args: Any?
-    ) -> FlutterPlatformView {
-        let controller = Fmp4PlayerViewController(
-            frame: frame,
-            viewIdentifier: viewId,
-            arguments: args,
-            binaryMessenger: messenger
-        )
-        plugin?.setPlayerViewController(controller)
-        return controller
-    }
-
-    func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
-        return FlutterStandardMessageCodec.sharedInstance()
-    }
-}
-
-// MARK: - Player View Controller
-
-class Fmp4PlayerViewController: NSObject, FlutterPlatformView {
-    private let playerView: UIView
-    private var videoLayer: AVSampleBufferDisplayLayer?
-    private var audioRenderer: AVSampleBufferAudioRenderer?
-    private var isAttached = false
-
-    init(
-        frame: CGRect,
-        viewIdentifier viewId: Int64,
-        arguments args: Any?,
-        binaryMessenger messenger: FlutterBinaryMessenger
-    ) {
-        playerView = UIView(frame: frame)
-        playerView.backgroundColor = .black
-        super.init()
-        setupPlayerLayers()
-    }
-
-    func view() -> UIView {
-        return playerView
-    }
-
-    private func setupPlayerLayers() {
-        // Video layer
-        let vlayer = AVSampleBufferDisplayLayer()
-        vlayer.videoGravity = .resizeAspect
-        vlayer.frame = playerView.bounds
-        vlayer.contentsScale = UIScreen.main.scale
-        vlayer.isOpaque = true
-        playerView.layer.addSublayer(vlayer)
-        self.videoLayer = vlayer
-
-        // Audio renderer
-        let arender = AVSampleBufferAudioRenderer()
-        self.audioRenderer = arender
-
-        // Attach to CodecSwift (static method in your CodecSwift)
-        // Make sure CodecSwift.attachPlayer expects AVSampleBufferDisplayLayer & AVSampleBufferAudioRenderer
-        CodecSwift.attachPlayer(videoplayer: vlayer, audioplayers: arender)
-
-        // Optionally ensure audio session active
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [])
-            try session.setActive(true)
-        } catch {
-            print("⚠️ AVAudioSession setup error: \(error)")
-        }
-
-        isAttached = true
-    }
-
-    // Keep the layer frames in sync when layout changes (call from Flutter if needed)
-    func updateFrame(_ frame: CGRect) {
-        DispatchQueue.main.async {
-            self.playerView.frame = frame
-            self.videoLayer?.frame = self.playerView.bounds
-            self.videoLayer?.position = CGPoint(x: self.playerView.bounds.midX, y: self.playerView.bounds.midY)
-        }
-    }
-
-    // Pause playback (set synchro rate 0)
-    func pausePlayback() {
-        if let _ = Optional(()) {
-            CodecSwift.synchro.setRate(0.0, time: CMTime.invalid)
-        }
-        print("⏸️ Playback paused (synchro rate -> 0)")
-    }
-
-    func resumePlayback() {
-        if let _ = Optional(()) {
-            CodecSwift.synchro.setRate(1.0, time: CMTime.invalid)
-        }
-        print("▶️ Playback resumed (synchro rate -> 1)")
-    }
-
-    func stopPlayback() {
-        // Flush layers and stop audio renderer
-        DispatchQueue.main.async {
-            self.videoLayer?.flush()
-            self.audioRenderer?.flush()
-        }
-        print("⏹️ Playback stopped and layers flushed")
-    }
-
-    deinit {
-        stopPlayback()
-    }
-}
+// // //
+// // //  MediaSourceModule.swift
+// // //  ErmisStreamNative
+// // //
+// // //  Created by Giáp Phan Văn on 4/10/25.
+// // //
+// //
+//  import Foundation
+//  import VideoToolbox
+//  import AVFoundation
+//  import AudioToolbox
+// //
+// //
+//  struct VideoConfig: Codable{
+//    var codec : String
+//    var codedWidth : Int
+//    var codedHeight : Int
+//    var frameRate : Int
+//    var description : String
+//  }
+//
+//  struct AudioConfig: Codable{
+//    var sampleRate : Int
+//    var numberOfChannels : Int
+//    var codec : String
+//    var description : String
+//  }
+//
+//  struct StreamConfig : Codable{
+//    var type : String
+//    var videoConfig : VideoConfig
+//    var audioConfig : AudioConfig
+//  }
+// //
+// //
+// //
+// // @objcMembers
+// // class CodecSwift: NSObject {
+// //     static let shared = CodecSwift()
+// //
+// //   private var fmp4demux = Demuxer(hevc: false)
+// //   private static var url : URL?
+// //   private var socketSession : URLSession?
+// //   private var socketTask : URLSessionWebSocketTask?
+// //   private var videoDecoder : VTDecompressionSession?
+// //
+// //   private var videoFormatDesc: CMFormatDescription?
+// //   private var audioFormatDesc : CMFormatDescription?
+// //
+// //    static var videodisplayer : AVSampleBufferDisplayLayer?
+// //    static var audioplayer : AVSampleBufferAudioRenderer?
+// //    static var synchro = AVSampleBufferRenderSynchronizer()
+// //
+// //   private var isPlaying = false
+// //   private var audioTimestamp = CMTime.zero
+// //   override init() {
+// //     self.socketSession = nil
+// //     self.socketTask = nil
+// //     self.videoDecoder = nil
+// //     let audioSession = AVAudioSession.sharedInstance()
+// //     try? audioSession.setCategory(.playback, mode: .default)
+// //     try? audioSession.setActive(true, options: [])
+// //     super.init()
+// //
+// //   }
+// //
+// //   private func setupPlayer() {
+// //
+// //   }
+// //
+// //   static func attachId(Id : String) {
+// // //    self.url = URL(string: "wss://streaming.ermis.network/stream-rgate/software/Ermis-streaming/\(Id)")
+// //     self.url = URL(string: "wss://streaming.ermis.network/stream-gate/software/Ermis-streaming/060f350f-9da8-422d-b14d-eb9642bea92a")
+// //   }
+// //
+// //   static func attachPlayer(videoplayer : AVSampleBufferDisplayLayer, audioplayers : AVSampleBufferAudioRenderer) {
+// //     self.videodisplayer = videoplayer
+// //     self.audioplayer = audioplayers
+// //     synchro.addRenderer(audioplayer!)
+// //     synchro.addRenderer(videodisplayer!)
+// //   }
+// //
+// //   func startWebSocket() {
+// //     self.socketSession = URLSession(configuration: .default)
+// //     var request = URLRequest(url: CodecSwift.url!)
+// //     request.addValue("fmp4", forHTTPHeaderField: "Sec-WebSocket-Protocol")
+// //     self.socketTask = socketSession?.webSocketTask(with: request)
+// //     CodecSwift.synchro.rate = 1.0
+// //     readMessage()
+// //   }
+// //
+// //   func stopWebSocket() {
+// //     socketTask?.cancel(with: .goingAway, reason: nil)
+// //     CodecSwift.videodisplayer?.flush()
+// //     CodecSwift.audioplayer?.flush()
+// //   }
+// //
+// //
+// //   private func readMessage() {
+// //     socketTask?.resume();
+// //     socketTask?.receive { result in
+// //       switch result {
+// //         case .failure(let error): print("fail : \(error)")
+// //         case .success(let message):
+// //             switch message {
+// //               case .data(let data):
+// //                 guard !data.isEmpty else {
+// //                   return
+// //                 }
+// //               self.decodeFrame(data.dropFirst())
+// //               case .string(let config):
+// //                 guard !config.isEmpty else {
+// //                   return
+// //                 }
+// //                  self.setupConfigFormat(config)
+// //               @unknown default:
+// //                 break
+// //             }
+// //         self.readMessage()
+// //       }
+// //     }
+// //   }
+// //
+// //   private func decodeFrame(_ data: Data) {
+// //     let frames : ProcessResult = try! fmp4demux.processData(data: data)
+// //
+// //     for frame in frames.videoFrames {
+// //       let timeStamp = CMTime(value: CMTimeValue(frame.timestamp!), timescale: 90000);
+// //       decodeVideoFrame(frame.data, timestamp: timeStamp)
+// //     }
+// //
+// //     for frame in frames.audioFrames {
+// //       let timeStamp = CMTime(value: CMTimeValue(frame.timestamp!), timescale: 48000);
+// //       decodeAudioFrame(frame.data, timestamp: timeStamp)
+// //     }
+// //
+// //
+// //
+// //   }
+// //
+// //   private func decodeVideoFrame(_ data: Data, timestamp: CMTime) {
+// //
+// //       guard let formatDesc = videoFormatDesc else {
+// //           print("❌ Video format not configured")
+// //           return
+// //       }
+// //
+// //       // Create block buffer
+// //       var blockBuffer: CMBlockBuffer?
+// //       var status = CMBlockBufferCreateWithMemoryBlock(
+// //           allocator: kCFAllocatorDefault,
+// //           memoryBlock: nil,
+// //           blockLength: data.count,
+// //           blockAllocator: kCFAllocatorDefault,
+// //           customBlockSource: nil,
+// //           offsetToData: 0,
+// //           dataLength: data.count,
+// //           flags: 0,
+// //           blockBufferOut: &blockBuffer
+// //       )
+// //
+// //       guard status == noErr, let blockBuffer = blockBuffer else {
+// //           print("❌ Failed to create video block buffer")
+// //           return
+// //       }
+// //
+// //       // Copy data
+// //       status = data.withUnsafeBytes { ptr in
+// //           CMBlockBufferReplaceDataBytes(
+// //               with: ptr.baseAddress!,
+// //               blockBuffer: blockBuffer,
+// //               offsetIntoDestination: 0,
+// //               dataLength: data.count
+// //           )
+// //       }
+// //
+// //       guard status == noErr else {
+// //           print("❌ Failed to copy video data")
+// //           return
+// //       }
+// //
+// //       // Create sample buffer
+// //       var timing = CMSampleTimingInfo(
+// //           duration: CMTime(value: 1, timescale: 60),
+// //           presentationTimeStamp: timestamp,
+// //           decodeTimeStamp: .invalid
+// //       )
+// //     print("Timing Video: ",timestamp)
+// //       var sampleBuffer: CMSampleBuffer?
+// //       status = CMSampleBufferCreateReady(
+// //           allocator: kCFAllocatorDefault,
+// //           dataBuffer: blockBuffer,
+// //           formatDescription: formatDesc,
+// //           sampleCount: 1,
+// //           sampleTimingEntryCount: 1,
+// //           sampleTimingArray: &timing,
+// //           sampleSizeEntryCount: 1,
+// //           sampleSizeArray: [data.count],
+// //           sampleBufferOut: &sampleBuffer
+// //       )
+// //
+// //       guard status == noErr, let sampleBuffer = sampleBuffer else {
+// //           print("❌ Failed to create video sample buffer")
+// //           return
+// //       }
+// //
+// //       // Enqueue to video layer
+// //     if CodecSwift.videodisplayer!.isReadyForMoreMediaData {
+// //       enqueueVideo(sampleBuffer)
+// //
+// // //           Start playback if not started
+// //           if !isPlaying {
+// //               CodecSwift.synchro.setRate(1.0, time: timestamp)
+// //               isPlaying = true
+// //               print("▶️ Playback started")
+// //           }
+// //       } else {
+// //           print("⚠️ Video layer not ready")
+// //       }
+// //   }
+// //
+// //   private func decodeAudioFrame(_ data: Data, timestamp: CMTime) {
+// //
+// //       guard let formatDesc = audioFormatDesc else {
+// //           print("❌ Audio format not configured")
+// //           return
+// //       }
+// //
+// //       // Strip ADTS header if present
+// //       var audioData = data
+// //       if isADTSHeader(data) {
+// //           let headerSize = (data[1] & 0x01) == 0 ? 9 : 7
+// //           audioData = data.subdata(in: headerSize..<data.count)
+// //       }
+// //
+// //       // Create block buffer
+// //       var blockBuffer: CMBlockBuffer?
+// //       var status = CMBlockBufferCreateWithMemoryBlock(
+// //           allocator: kCFAllocatorDefault,
+// //           memoryBlock: nil,
+// //           blockLength: audioData.count,
+// //           blockAllocator: kCFAllocatorDefault,
+// //           customBlockSource: nil,
+// //           offsetToData: 0,
+// //           dataLength: audioData.count,
+// //           flags: 0,
+// //           blockBufferOut: &blockBuffer
+// //       )
+// //
+// //       guard status == noErr, let blockBuffer = blockBuffer else {
+// //           print("❌ Failed to create audio block buffer")
+// //           return
+// //       }
+// //
+// //       // Copy data
+// //       status = audioData.withUnsafeBytes { ptr in
+// //           CMBlockBufferReplaceDataBytes(
+// //               with: ptr.baseAddress!,
+// //               blockBuffer: blockBuffer,
+// //               offsetIntoDestination: 0,
+// //               dataLength: audioData.count
+// //           )
+// //       }
+// //
+// //       guard status == noErr else {
+// //           print("❌ Failed to copy audio data")
+// //           return
+// //       }
+// //
+// //       // Calculate continuous timestamp
+// //       let currentTimestamp: CMTime
+// //       if audioTimestamp == .zero {
+// //           currentTimestamp = timestamp
+// //       } else {
+// //           let frameDuration = CMTime(value: 1024, timescale: 48000)
+// //           currentTimestamp = CMTimeAdd(audioTimestamp, frameDuration)
+// //       }
+// //       audioTimestamp = currentTimestamp
+// //
+// //       // Create packet description
+// //       var packetDesc = AudioStreamPacketDescription(
+// //           mStartOffset: 0,
+// //           mVariableFramesInPacket: 0,
+// //           mDataByteSize: UInt32(audioData.count)
+// //       )
+// //
+// //       // Create sample buffer
+// //       var sampleBuffer: CMSampleBuffer?
+// //       status = CMAudioSampleBufferCreateReadyWithPacketDescriptions(
+// //           allocator: kCFAllocatorDefault,
+// //           dataBuffer: blockBuffer,
+// //           formatDescription: formatDesc,
+// //           sampleCount: 1,
+// //           presentationTimeStamp: currentTimestamp,
+// //           packetDescriptions: &packetDesc,
+// //           sampleBufferOut: &sampleBuffer
+// //       )
+// //
+// //       guard status == noErr, let sampleBuffer = sampleBuffer else {
+// //           print("❌ Failed to create audio sample buffer: \(status)")
+// //           return
+// //       }
+// //     enqueueAudio(sampleBuffer)
+// //   }
+// //
+// //   private func setupConfigFormat(_ config : String) {
+// //     let streamconfig = getStreamConfig(config: config)
+// //     guard streamconfig != nil else {
+// //       return
+// //     }
+// //     let video_description = streamconfig?.videoConfig.description
+// //     let audio_description = streamconfig?.audioConfig.description
+// //
+// //     let accData = Data(base64Encoded: audio_description!)
+// //     let avccData = Data(base64Encoded: video_description!)
+// //     audioFormatDesc = createAudioFormatDescription(accData!, streamconfig?.audioConfig);
+// //     videoFormatDesc = createVideoFormatDescription(avccData!)
+// //   }
+// //
+// //   private func getStreamConfig(config : String) -> StreamConfig? {
+// //     let data = Data(config.utf8);
+// //     do {
+// //       let configdata = try JSONDecoder().decode(StreamConfig.self, from: data)
+// //       return configdata
+// //     } catch {
+// //       return nil
+// //     }
+// //   }
+// //
+// //   private func createVideoFormatDescription(_ avcCData: Data) -> CMVideoFormatDescription? {
+// //       let avcCNSData = avcCData as CFData
+// //
+// //       let extensions: CFDictionary = [
+// //           kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms as String: [
+// //               "avcC": avcCNSData
+// //           ]
+// //       ] as CFDictionary
+// //
+// //       var formatDesc: CMVideoFormatDescription?
+// //
+// //       let status = CMVideoFormatDescriptionCreate(
+// //           allocator: kCFAllocatorDefault,
+// //           codecType: kCMVideoCodecType_H264,
+// //           width: 1280,
+// //           height: 720,
+// //           extensions: extensions,
+// //           formatDescriptionOut: &formatDesc
+// //       )
+// //
+// //       guard status == noErr else {
+// //         print("error")
+// //         return nil
+// //       }
+// //       return formatDesc!
+// //   }
+// //
+// //   private func createAudioFormatDescription(_ aaCData: Data, _ audio_config : AudioConfig?) -> CMAudioFormatDescription? {
+// //     let aacCNSData = aaCData as CFData
+// //
+// //         let extensions: CFDictionary = [
+// //             kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms as String: [
+// //                 "asc": aacCNSData
+// //             ]
+// //         ] as CFDictionary
+// //
+// //     let sampleRate = Float64(audio_config!.sampleRate)
+// //     var formatDesc: CMAudioFormatDescription?
+// //     var asbd = AudioStreamBasicDescription(
+// //       mSampleRate: sampleRate,
+// //       mFormatID: kAudioFormatMPEG4AAC,
+// //       mFormatFlags: 0,
+// //       mBytesPerPacket: 0,
+// //       mFramesPerPacket: 1024,
+// //       mBytesPerFrame: 0,
+// //       mChannelsPerFrame: UInt32(audio_config?.numberOfChannels ?? 2),
+// //       mBitsPerChannel: 0,
+// //       mReserved: 0)
+// //
+// //     let status =
+// //       CMAudioFormatDescriptionCreate(
+// //           allocator: kCFAllocatorDefault,
+// //           asbd: &asbd,
+// //           layoutSize: 0,
+// //           layout: nil,
+// //           magicCookieSize: 0,
+// //           magicCookie: nil,
+// //           extensions: extensions,
+// //           formatDescriptionOut: &formatDesc
+// //       )
+// //
+// //
+// //       guard status == noErr else {
+// //         print("error")
+// //         return nil
+// //       }
+// //       return formatDesc!
+// //   }
+// //
+// //   private func isADTSHeader(_ data: Data) -> Bool {
+// //       guard data.count >= 2 else { return false }
+// //       return data[0] == 0xFF && (data[1] & 0xF0) == 0xF0
+// //   }
+// //
+// //
+// //   private func enqueueVideo(_ sb: CMSampleBuffer, retries: Int = 3) {
+// //
+// //     print(CodecSwift.videodisplayer!.isReadyForMoreMediaData)
+// //     if CodecSwift.videodisplayer!.isReadyForMoreMediaData {
+// //         CodecSwift.videodisplayer!.enqueue(sb)
+// //       let pts = CMSampleBufferGetPresentationTimeStamp(sb)
+// //           switch CodecSwift.videodisplayer!.status {
+// //           case .rendering:
+// //               print("[Video] Enqueued audio at PTS: \(pts). Status: rendering")
+// //           case .failed:
+// //               print("[Video] Renderer failed: \(CodecSwift.videodisplayer!.error?.localizedDescription ?? "Unknown")")
+// //           default:
+// //               print("[Video] Enqueued audio at PTS: \(pts). Status: \(CodecSwift.videodisplayer!.status)")
+// //           }
+// //
+// //     }  else {
+// //         print("error")
+// //     }
+// //   }
+// //
+// //   private func enqueueAudio(_ sb: CMSampleBuffer, retries: Int = 3) {
+// //
+// //     print(CodecSwift.audioplayer!.isReadyForMoreMediaData)
+// //     if CodecSwift.audioplayer!.isReadyForMoreMediaData {
+// //         CodecSwift.audioplayer!.enqueue(sb)
+// //       let pts = CMSampleBufferGetPresentationTimeStamp(sb)
+// //           switch CodecSwift.audioplayer!.status {
+// //           case .rendering:
+// //               print("[Audio] Enqueued audio at PTS: \(pts). Status: rendering")
+// //           case .failed:
+// //               print("[Audio] Renderer failed: \(CodecSwift.audioplayer!.error?.localizedDescription ?? "Unknown")")
+// //           default:
+// //               print("[Audio] Enqueued audio at PTS: \(pts). Status: \(CodecSwift.audioplayer!.status)")
+// //           }
+// //
+// //     }  else {
+// //         print("error")
+// //     }
+// //   }
+// // }
+//
+// // MARK: - CodecSwift
+//
+// @objcMembers
+// class CodecSwift: NSObject {
+//     static let shared = CodecSwift()
+//
+//     private var fmp4demux = Demuxer(hevc: false)
+//     private static var url : URL?
+//     private var socketSession : URLSession?
+//     private var socketTask : URLSessionWebSocketTask?
+//
+//     private var videoFormatDesc: CMVideoFormatDescription?
+//     private var audioFormatDesc : CMAudioFormatDescription?
+//
+//     static var videodisplayer : AVSampleBufferDisplayLayer?
+//     static var audioplayer : AVSampleBufferAudioRenderer?
+//     static var synchro = AVSampleBufferRenderSynchronizer()
+//
+//     private var isPlaying = false
+//     private var audioTimestamp = CMTime.zero
+//
+//     override init() {
+//         super.init()
+//         let audioSession = AVAudioSession.sharedInstance()
+//         try? audioSession.setCategory(.playback, mode: .default)
+//         try? audioSession.setActive(true, options: [])
+//     }
+//
+//     static func attachId(Id : String) {
+//         self.url = URL(string: "wss://sfu-do-streaming.ermis.network/stream-gate/software/Ermis-streaming/\(Id)")
+//     }
+//
+//     static func attachPlayer(videoplayer : AVSampleBufferDisplayLayer, audioplayers : AVSampleBufferAudioRenderer) {
+//         self.videodisplayer = videoplayer
+//         self.audioplayer = audioplayers
+//         synchro.addRenderer(audioplayers)
+//         synchro.addRenderer(videoplayer)
+//     }
+//
+//     func startWebSocket() {
+//         guard let url = CodecSwift.url else { return }
+//         self.socketSession = URLSession(configuration: .default)
+//         var request = URLRequest(url: url)
+//         request.addValue("fmp4", forHTTPHeaderField: "Sec-WebSocket-Protocol")
+//         self.socketTask = socketSession?.webSocketTask(with: request)
+//         CodecSwift.synchro.rate = 1.0
+//         self.socketTask?.resume()
+//         readMessage()
+//     }
+//
+//     func stopWebSocket() {
+//         socketTask?.cancel(with: .goingAway, reason: nil)
+//         CodecSwift.videodisplayer?.flush()
+//         CodecSwift.audioplayer?.flush()
+//         isPlaying = false
+//         audioTimestamp = .zero
+//     }
+//
+//     private func readMessage() {
+//         socketTask?.receive { [weak self] result in
+//             guard let self = self else { return }
+//             switch result {
+//             case .failure(let error): print("fail : \(error)")
+//             case .success(let message):
+//                 switch message {
+//                 case .data(let data):
+//                     guard !data.isEmpty else { break }
+//                     self.decodeFrame(data.dropFirst())
+//                 case .string(let config):
+//                     guard !config.isEmpty else { break }
+//                     self.setupConfigFormat(config)
+//                 @unknown default: break
+//                 }
+//             }
+//             self.readMessage()
+//         }
+//     }
+//
+//     private func decodeFrame(_ data: Data) {
+//         let frames : ProcessResult = try! fmp4demux.processData(data: data)
+//
+//         for frame in frames.videoFrames {
+//             let timeStamp = CMTime(value: CMTimeValue(frame.timestamp!), timescale: 90000)
+//             decodeVideoFrame(frame.data, timestamp: timeStamp)
+//         }
+//
+//         for frame in frames.audioFrames {
+//             let timeStamp = CMTime(value: CMTimeValue(frame.timestamp!), timescale: 48000)
+//             decodeAudioFrame(frame.data, timestamp: timeStamp)
+//         }
+//     }
+//
+//     private func decodeVideoFrame(_ data: Data, timestamp: CMTime) {
+//         guard let formatDesc = videoFormatDesc else {
+//             print("❌ Video format not configured")
+//             return
+//         }
+//
+//         var blockBuffer: CMBlockBuffer?
+//         var status = CMBlockBufferCreateWithMemoryBlock(
+//             allocator: kCFAllocatorDefault,
+//             memoryBlock: nil,
+//             blockLength: data.count,
+//             blockAllocator: kCFAllocatorDefault,
+//             customBlockSource: nil,
+//             offsetToData: 0,
+//             dataLength: data.count,
+//             flags: 0,
+//             blockBufferOut: &blockBuffer
+//         )
+//         guard status == noErr, let blockBuffer = blockBuffer else { return }
+//
+//         status = data.withUnsafeBytes { ptr in
+//             CMBlockBufferReplaceDataBytes(
+//                 with: ptr.baseAddress!,
+//                 blockBuffer: blockBuffer,
+//                 offsetIntoDestination: 0,
+//                 dataLength: data.count
+//             )
+//         }
+//         guard status == noErr else { return }
+//
+//         var timing = CMSampleTimingInfo(
+//             duration: CMTime(value: 1, timescale: 60),
+//             presentationTimeStamp: timestamp,
+//             decodeTimeStamp: .invalid
+//         )
+//
+//         var sampleBuffer: CMSampleBuffer?
+//         status = CMSampleBufferCreateReady(
+//             allocator: kCFAllocatorDefault,
+//             dataBuffer: blockBuffer,
+//             formatDescription: formatDesc,
+//             sampleCount: 1,
+//             sampleTimingEntryCount: 1,
+//             sampleTimingArray: &timing,
+//             sampleSizeEntryCount: 1,
+//             sampleSizeArray: [data.count],
+//             sampleBufferOut: &sampleBuffer
+//         )
+//         guard status == noErr, let sampleBuffer = sampleBuffer else { return }
+//
+//         enqueueVideo(sampleBuffer)
+//         if !isPlaying {
+//             CodecSwift.synchro.setRate(1.0, time: timestamp)
+//             isPlaying = true
+//         }
+//     }
+//
+//     private func decodeAudioFrame(_ data: Data, timestamp: CMTime) {
+//         guard let formatDesc = audioFormatDesc else { return }
+//         var audioData = data
+//         if isADTSHeader(data) {
+//             let headerSize = (data[1] & 0x01) == 0 ? 9 : 7
+//             audioData = data.subdata(in: headerSize..<data.count)
+//         }
+//
+//         var blockBuffer: CMBlockBuffer?
+//         var status = CMBlockBufferCreateWithMemoryBlock(
+//             allocator: kCFAllocatorDefault,
+//             memoryBlock: nil,
+//             blockLength: audioData.count,
+//             blockAllocator: kCFAllocatorDefault,
+//             customBlockSource: nil,
+//             offsetToData: 0,
+//             dataLength: audioData.count,
+//             flags: 0,
+//             blockBufferOut: &blockBuffer
+//         )
+//         guard status == noErr, let blockBuffer = blockBuffer else { return }
+//
+//         status = audioData.withUnsafeBytes { ptr in
+//             CMBlockBufferReplaceDataBytes(
+//                 with: ptr.baseAddress!,
+//                 blockBuffer: blockBuffer,
+//                 offsetIntoDestination: 0,
+//                 dataLength: audioData.count
+//             )
+//         }
+//         guard status == noErr else { return }
+//
+//         let currentTimestamp: CMTime
+//         if audioTimestamp == .zero {
+//             currentTimestamp = timestamp
+//         } else {
+//             currentTimestamp = CMTimeAdd(audioTimestamp, CMTime(value: 1024, timescale: 48000))
+//         }
+//         audioTimestamp = currentTimestamp
+//
+//         var packetDesc = AudioStreamPacketDescription(
+//             mStartOffset: 0,
+//             mVariableFramesInPacket: 0,
+//             mDataByteSize: UInt32(audioData.count)
+//         )
+//
+//         var sampleBuffer: CMSampleBuffer?
+//         status = CMAudioSampleBufferCreateReadyWithPacketDescriptions(
+//             allocator: kCFAllocatorDefault,
+//             dataBuffer: blockBuffer,
+//             formatDescription: formatDesc,
+//             sampleCount: 1,
+//             presentationTimeStamp: currentTimestamp,
+//             packetDescriptions: &packetDesc,
+//             sampleBufferOut: &sampleBuffer
+//         )
+//         guard status == noErr, let sampleBuffer = sampleBuffer else { return }
+//
+//         enqueueAudio(sampleBuffer)
+//     }
+//
+//     private func setupConfigFormat(_ config: String) {
+//         guard let streamconfig = getStreamConfig(config: config) else { return }
+//         guard let videoDescData = Data(base64Encoded: streamconfig.videoConfig.description),
+//               let audioDescData = Data(base64Encoded: streamconfig.audioConfig.description) else { return }
+//
+//         audioFormatDesc = createAudioFormatDescription(audioDescData, streamconfig.audioConfig)
+//         videoFormatDesc = createVideoFormatDescription(videoDescData,
+//                                                        width: streamconfig.videoConfig.codedWidth,
+//                                                        height: streamconfig.videoConfig.codedHeight)
+//     }
+//
+//     private func getStreamConfig(config: String) -> StreamConfig? {
+//         do {
+//             return try JSONDecoder().decode(StreamConfig.self, from: Data(config.utf8))
+//         } catch {
+//             return nil
+//         }
+//     }
+//
+//     private func createVideoFormatDescription(_ avcCData: Data, width: Int, height: Int) -> CMVideoFormatDescription? {
+//         let extensions: CFDictionary = [
+//             kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms as String: [
+//                 "avcC": avcCData as CFData
+//             ]
+//         ] as CFDictionary
+//
+//         var formatDesc: CMVideoFormatDescription?
+//         let status = CMVideoFormatDescriptionCreate(
+//             allocator: kCFAllocatorDefault,
+//             codecType: kCMVideoCodecType_H264,
+//             width: Int32(width),
+//             height: Int32(height),
+//             extensions: extensions,
+//             formatDescriptionOut: &formatDesc
+//         )
+//         guard status == noErr else { return nil }
+//         return formatDesc
+//     }
+//
+//     private func createAudioFormatDescription(_ aaCData: Data, _ audio_config: AudioConfig?) -> CMAudioFormatDescription? {
+//         guard let audio_config = audio_config else { return nil }
+//         let extensions: CFDictionary = [
+//             kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms as String: [
+//                 "asc": aaCData as CFData
+//             ]
+//         ] as CFDictionary
+//
+//         var asbd = AudioStreamBasicDescription(
+//             mSampleRate: Float64(audio_config.sampleRate),
+//             mFormatID: kAudioFormatMPEG4AAC,
+//             mFormatFlags: 0,
+//             mBytesPerPacket: 0,
+//             mFramesPerPacket: 1024,
+//             mBytesPerFrame: 0,
+//             mChannelsPerFrame: UInt32(audio_config.numberOfChannels),
+//             mBitsPerChannel: 0,
+//             mReserved: 0
+//         )
+//
+//         var formatDesc: CMAudioFormatDescription?
+//         let status = CMAudioFormatDescriptionCreate(
+//             allocator: kCFAllocatorDefault,
+//             asbd: &asbd,
+//             layoutSize: 0,
+//             layout: nil,
+//             magicCookieSize: 0,
+//             magicCookie: nil,
+//             extensions: extensions,
+//             formatDescriptionOut: &formatDesc
+//         )
+//         guard status == noErr else { return nil }
+//         return formatDesc
+//     }
+//
+//     private func isADTSHeader(_ data: Data) -> Bool {
+//         guard data.count >= 2 else { return false }
+//         return data[0] == 0xFF && (data[1] & 0xF0) == 0xF0
+//     }
+//
+//     private func enqueueVideo(_ sb: CMSampleBuffer) {
+//         guard let layer = CodecSwift.videodisplayer else { return }
+//         if layer.isReadyForMoreMediaData {
+//             layer.enqueue(sb)
+//         } else {
+//             // Retry after delay
+//             DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) {
+//                 self.enqueueVideo(sb)
+//             }
+//         }
+//     }
+//
+//     private func enqueueAudio(_ sb: CMSampleBuffer) {
+//         guard let renderer = CodecSwift.audioplayer else { return }
+//         if renderer.isReadyForMoreMediaData {
+//             renderer.enqueue(sb)
+//         } else {
+//             DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) {
+//                 self.enqueueAudio(sb)
+//             }
+//         }
+//     }
+// }
