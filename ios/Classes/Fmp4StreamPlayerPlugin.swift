@@ -144,7 +144,7 @@ class Fmp4StreamPlayerViewFactory: NSObject, FlutterPlatformViewFactory {
 // MARK: - Player View Controller
 
 class Fmp4PlayerViewController: NSObject, FlutterPlatformView {
-    private let containerView: UIView
+    private let containerView: TestView
     private var videoLayer: AVSampleBufferDisplayLayer!
     private var audioRenderer: AVSampleBufferAudioRenderer!
     private var synchronizer: AVSampleBufferRenderSynchronizer!
@@ -156,21 +156,21 @@ class Fmp4PlayerViewController: NSObject, FlutterPlatformView {
     private var audioTimestamp = CMTime.zero
 
     init(frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?, binaryMessenger messenger: FlutterBinaryMessenger) {
-        containerView = UIView(frame: frame)
+        containerView = TestView()
         containerView.backgroundColor = .black
         super.init()
+
+        containerView.onSizeChanged = { [weak self]  in
+            guard let self else {
+                return
+            }
+            self.videoLayer.frame = self.containerView.frame
+        }
         setupPlayer()
         setupAudioSession()
     }
 
     func view() -> UIView { containerView }
-
-//    func setDemuxer(_ demuxer: Demuxer?) {
-//        self.demuxer = demuxer
-//        if demuxer != nil {
-//            print("✅ Demuxer set in view controller")
-//        }
-//    }
 
     func layoutPlayerLayer() {
         DispatchQueue.main.async {
@@ -187,6 +187,7 @@ class Fmp4PlayerViewController: NSObject, FlutterPlatformView {
         synchronizer = AVSampleBufferRenderSynchronizer()
         synchronizer.addRenderer(videoLayer)
         synchronizer.addRenderer(audioRenderer)
+        videoLayer.frame = containerView.bounds
         print("🎥 AVSampleBufferDisplayLayer setup completed")
     }
 
@@ -206,7 +207,12 @@ class Fmp4PlayerViewController: NSObject, FlutterPlatformView {
         }
         let video_description = streamConfig.videoConfig.description
         let avccData = Data(base64Encoded: video_description)
-        videoFormatDesc = createVideoFormatDescription(avccData!)
+        videoFormatDesc = createVideoFormatDescription(
+                   videoDescData,
+                   width: streamConfig.videoConfig.codedWidth,
+                   height: streamConfig.videoConfig.codedHeight,
+                   isHEVC: streamConfig.videoConfig.codec.lowercased().contains("hev")
+               )
         audioFormatDesc = createAudioFormatDescription(audioDescData, streamConfig.audioConfig)
         print("🎛️ Format descriptions set: Video=\(videoFormatDesc != nil), Audio=\(audioFormatDesc != nil)")
     }
@@ -225,33 +231,30 @@ class Fmp4PlayerViewController: NSObject, FlutterPlatformView {
             }
     }
 
-    private func createVideoFormatDescription(_ avcCData: Data) -> CMVideoFormatDescription? {
-         let avcCNSData = avcCData as CFData
-         
-         let extensions: CFDictionary = [
-             kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms as String: [
-                 "avcC": avcCNSData
-             ]
-         ] as CFDictionary
-        
-         var formatDesc: CMVideoFormatDescription?
-         
-         let status = CMVideoFormatDescriptionCreate(
-             allocator: kCFAllocatorDefault,
-             codecType: kCMVideoCodecType_HEVC,
-             width: 1280,
-             height: 720,
-             extensions: extensions,
-             formatDescriptionOut: &formatDesc
-         )
-
-        guard status == noErr else {
-               print("❌ Failed to create HEVC video format description: \(status)")
-               return nil
-           }
-
-        print("🎛️ createVideoFormatDescription: Video=\(formatDesc)")
-         return formatDesc!
+    private func createVideoFormatDescription(_ descData: Data, width: Int, height: Int, isHEVC: Bool) -> CMVideoFormatDescription? {
+        let atomKey = isHEVC ? "hvcC" : "avcC"
+                let codecType = isHEVC ? kCMVideoCodecType_HEVC : kCMVideoCodecType_H264
+                
+                let extensions: CFDictionary = [
+                    kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms as String: [
+                        atomKey: descData as CFData
+                    ]
+                ] as CFDictionary
+                
+                var formatDesc: CMVideoFormatDescription?
+                let status = CMVideoFormatDescriptionCreate(
+                    allocator: kCFAllocatorDefault,
+                    codecType: codecType,
+                    width: Int32(width),
+                    height: Int32(height),
+                    extensions: extensions,
+                    formatDescriptionOut: &formatDesc
+                )
+                guard status == noErr else {
+                    print("❌ Failed to create video format description: \(status)")
+                    return nil
+                }
+                return formatDesc
      }
 
 //    private func decodeVideoFrame(_ data: Data, timestamp: CMTime) {
@@ -617,5 +620,16 @@ struct StreamConfig: Codable {
         let numberOfChannels: Int
         let codec: String
         let description: String
+    }
+}
+
+
+class TestView: UIView {
+
+    var onSizeChanged: (() -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onSizeChanged?()
     }
 }
