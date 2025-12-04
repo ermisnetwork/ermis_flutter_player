@@ -6,9 +6,9 @@ plugins {
 }
 
 android {
-    namespace = "com.yourcompany.fmp4_stream_player_example"
+    namespace = "com.example.example"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.2.12479018"
+
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.yourcompany.fmp4_stream_player_example"
+        applicationId = "com.example.example"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

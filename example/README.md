@@ -1,6 +1,6 @@
-# fmp4_stream_player_example
+# example
 
-Demonstrates how to use the fmp4_stream_player plugin.
+A new Flutter project.
 
 ## Getting Started
 

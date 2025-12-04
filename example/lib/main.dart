@@ -2,7 +2,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fmp4_stream_player/ermis_stream_player.dart';
+import 'package:ermis_stream_player/ermis_stream_player.dart';
 
 void main() {
   runApp(const MyApp());
@@ -26,8 +26,8 @@ class _MyAppState extends State<MyApp> {
     });
 
     final success = await ErmisStreamPlayerSDK.startStreaming(
-      streamId: "",
-      token: "",
+      streamId: "417c42f6-0cb0-4115-9e48-c15ccbf2b228",
+      token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiOGY5OTU5YzYtMDEzYS00ZDIwLTlkYjUtZGNjN2NjNjE1NzA0IiwiY2xpZW50X2lkIjoiYmE3Mzk4YzQtNjdhZi00YzgyLWIyZjMtNDZiOWNhM2Y4MTExIiwiYXBwX25hbWUiOiJFcm1pcy1zdHJlYW1pbmciLCJleHAiOjE3NjQ4MzEzMDIyMTksInJvbGVfbmFtZSI6ImNsaWVudF9hZG1pbiIsInBlcm1pc3Npb25zIjpbMSwyLDMsNCw1LDksMTEsMTIsMTMsMTQsMTUsMTYsMTcsMTgsMTksMjAsMjEsMjIsMjMsMjQsMjUsMjYsMjcsMjgsMjksMzAsMzEsMzIsMzMsMzQsMzUsMzYsMzcsMzgsMzksNDAsNDUsNDcsNDgsNDldfQ.QaMVbEaUQkHCPO-8jEtbPNH5DhniIUC5UL0YFnE22m4",
     );
 
     setState(() {
