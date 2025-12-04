@@ -11,8 +11,8 @@ A Flutter plugin for streaming FMP4 video with Rust demuxer backend.
   s.source           = { :path => '.' }
 
   s.source_files = 'Classes/**/*'
-#   s.public_header_files = 'Classes/ErmisFFI/*.h'
-#   s.vendored_libraries = 'lib/*.a'
+  s.public_header_files = 'Classes/ErmisFFI/*.h'
+  s.vendored_libraries = 'lib/*.a'
 
   s.dependency 'Flutter'
   s.dependency 'Starscream', '~> 4.0'
@@ -24,6 +24,6 @@ A Flutter plugin for streaming FMP4 video with Rust demuxer backend.
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-#     'OTHER_LDFLAGS' => '-force_load $(PODS_TARGET_SRCROOT)/lib/libermis_fmp4_demuxer_binding.a'
+    'OTHER_LDFLAGS' => '-force_load $(PODS_TARGET_SRCROOT)/lib/libermis_fmp4_demuxer_binding.a'
   }
 end
