@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ermis_stream_player'
-  s.version          = '0.0.3+1'
+  s.version          = '0.0.4'
   s.summary          = 'FMP4 Stream Player for Flutter'
   s.description      = <<-DESC
 A Flutter plugin for streaming FMP4 video with Rust demuxer backend.
