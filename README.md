@@ -22,7 +22,7 @@ dependencies:
 flutter pub get
 
 Import SDK:
-```import 'package:ermis_stream_flutter_player/ermis_stream_flutter_player.dart';```
+```import 'package:ermis_stream_player/ermis_stream_player.dart';```
 
 
 Start Streaming:
@@ -31,26 +31,26 @@ Start Streaming:
 bool isStreaming = false;
 
 Future<void> startStream() async {
-  final result = await ErmisStreamFlutterPlayer.startStreaming(
-    streamId: "your_stream_id",
-    token: "your_access_token",
-  );
+    final result = await ErmisStreamPlayerSDK.startStreaming(
+      streamId: "your_stream_id",
+      token: "your_access_token",
+    );
 
-  if (result.success) {
-    isStreaming = true;
-    print("Streaming started!");
-  } else {
-    print("Failed to start streaming: ${result.message}");
+    if (result) {
+      isStreaming = true;
+      print("Streaming started!");
+    } else {
+      print("Failed to start streaming");
+    }
   }
-}
 
 Stop Streaming:
 
 Future<void> stopStream() async {
-  await ErmisStreamFlutterPlayer.stopStreaming();
-  isStreaming = false;
-  print("Streaming stopped");
-}
+    await ErmisStreamPlayerSDK.stopStreaming();
+    isStreaming = false;
+    print("Streaming stopped");
+  }
 ```
 
 Notes:
@@ -59,6 +59,7 @@ Notes:
 
 License:
 MIT License © 2025 Ermis Network
+
 
 
 
