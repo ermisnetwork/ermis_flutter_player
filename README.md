@@ -13,7 +13,7 @@ Installation:
 1. Thêm plugin vào pubspec.yaml
 ```
 dependencies:
-  ermis_stream_flutter_player:
+  ermis_stream_player:
     git:
       url: https://github.com/ermisnetwork/ermis_flutter_player.git
       ref: main
@@ -59,5 +59,6 @@ Notes:
 
 License:
 MIT License © 2025 Ermis Network
+
 
 
