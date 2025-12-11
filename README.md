@@ -30,8 +30,8 @@ Start Streaming:
 ```
 bool isStreaming = false;
 
-Future<void> startStream() async {
-    final result = await ErmisStreamPlayerSDK.startStreaming(
+Future<void> joinStream() async {
+    final result = await ErmisStreamPlayerSDK.joinStream(
       streamId: "your_stream_id",
       token: "your_access_token",
     );
@@ -46,8 +46,8 @@ Future<void> startStream() async {
 
 Stop Streaming:
 
-Future<void> stopStream() async {
-    await ErmisStreamPlayerSDK.stopStreaming();
+Future<void> leaveStream() async {
+    await ErmisStreamPlayerSDK.leaveStream();
     isStreaming = false;
     print("Streaming stopped");
   }

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 class ErmisStreamPlayerSDK {
   static const MethodChannel _channel = MethodChannel('fmp4_stream_player');
 
-  static Future<bool> startStreaming({
+  static Future<bool> joinStream({
     required String streamId,
     required String token,
   }) async {
@@ -20,7 +20,7 @@ class ErmisStreamPlayerSDK {
     }
   }
 
-  static Future<bool> stopStreaming() async {
+  static Future<bool> leaveStream() async {
     try {
       final result = await _channel.invokeMethod('stopStreaming');
       return result == true;
