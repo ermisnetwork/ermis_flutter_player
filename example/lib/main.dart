@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,9 +24,10 @@ class _MyAppState extends State<MyApp> {
       _status = 'Connecting...';
     });
 
-    final success = await ErmisStreamPlayerSDK.startStreaming(
-      streamId: "24418ae0-dca5-40ce-beb7-fbeab2a16407",
-      token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiOGY5OTU5YzYtMDEzYS00ZDIwLTlkYjUtZGNjN2NjNjE1NzA0IiwiY2xpZW50X2lkIjoiYmE3Mzk4YzQtNjdhZi00YzgyLWIyZjMtNDZiOWNhM2Y4MTExIiwiYXBwX25hbWUiOiJFcm1pcy1zdHJlYW1pbmciLCJleHAiOjE3NjQ5NDM3MDE2ODksInJvbGVfbmFtZSI6ImNsaWVudF9hZG1pbiIsInBlcm1pc3Npb25zIjpbMSwyLDMsNCw1LDksMTEsMTIsMTMsMTQsMTUsMTYsMTcsMTgsMTksMjAsMjEsMjIsMjMsMjQsMjUsMjYsMjcsMjgsMjksMzAsMzEsMzIsMzMsMzQsMzUsMzYsMzcsMzgsMzksNDAsNDUsNDcsNDgsNDldfQ.1y8Imb0uaFnDHqnqABZ1sF5d8oDXb_0QQL1_qMtKGRA",
+    final success = await ErmisStreamPlayerSDK.joinStream(
+      streamId: "f198fc18-d5cb-4699-8225-03a2f9f60a03",
+      token:
+          "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMHhiYTcxZDJlYzEwZDllZGExZDU1OGIxZWY4NjA3ZGNjN2NhNmM5MzBkIiwiY2xpZW50X2lkIjoiMzNhZTc0NzMtNjMxNS00NDMzLTgyYjAtMmFmYzNhMzk5OWUyIiwiY2hhaW5faWQiOjEsInByb2plY3RfaWQiOiJlYzk2NDk3NS1hZTg0LTRhOGUtOTFhMS0yMjJjYTNhZWVlZjgiLCJhcGlrZXkiOiJzWGhjUHUwSm5lVWJRNlRHMnRYZVBLOE1DMnRCQUhuOSIsImVybWlzIjpmYWxzZSwiZXhwIjoxODY1NTI3NTE5MTUyLCJhZG1pbiI6ZmFsc2UsImdhdGUiOmZhbHNlfQ.Uj2h-a3uB0TH9DmPD6C8kaip5xkIkxkcH4mtkdUBLw4",
     );
 
     setState(() {
@@ -37,7 +37,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _stopStream() async {
-    final success = await ErmisStreamPlayerSDK.stopStreaming();
+    final success = await ErmisStreamPlayerSDK.leaveStream();
     setState(() {
       _isStreaming = false;
       _status = success ? 'Stopped' : 'Failed to stop';
@@ -70,9 +70,7 @@ class _MyAppState extends State<MyApp> {
                     'Status: $_status',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  if (_lastResult != null) ...[
-                    const SizedBox(height: 4),
-                  ],
+                  if (_lastResult != null) ...[const SizedBox(height: 4)],
                 ],
               ),
             ),
