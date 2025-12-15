@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit
 
 object FMP4StreamPlayerManager {
 
+    private const val TAG = "ErmisFmp4Player"
     private lateinit var context: Context
     val mainHandler = Handler(Looper.getMainLooper())
 
@@ -81,6 +83,15 @@ object FMP4StreamPlayerManager {
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                Log.d(TAG, "WebSocket connected")
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                Log.d(TAG, "WebSocket text: $text")
+                handleStreamConfigPayload(text)
+            }
+
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                 try {
                     val data = bytes.toByteArray()
@@ -100,15 +111,20 @@ object FMP4StreamPlayerManager {
                 }
             }
 
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                Log.w(TAG, "WebSocket closing: $code - $reason")
+            }
+
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                Log.e(TAG, "WebSocket error", t)
                 t.printStackTrace()
                 this@FMP4StreamPlayerManager.webSocket = null
                 if (isStreaming && workerUrl != null) {
                     mainHandler.postDelayed({ openWebSocket(workerUrl!!) }, 1000)
                 }
             }
-
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                Log.d(TAG, "WebSocket closed: $code - $reason")
                 this@FMP4StreamPlayerManager.webSocket = null
             }
         })
@@ -163,6 +179,13 @@ object FMP4StreamPlayerManager {
     private fun writeUint64(data: ByteArray, offset: Int, value: Long) {
         val buf = ByteBuffer.allocate(8).putLong(value)
         System.arraycopy(buf.array(), 0, data, offset, 8)
+    }
+    private fun handleStreamConfigPayload(message: String) {
+        if (message.contains("videoConfig") && message.contains("audioConfig")) {
+            Log.d(TAG, "Received stream configuration payload")
+            // Android ExoPlayer does not require manual demuxer configuration for this payload,
+            // but we keep the hook for parity with iOS implementation.
+        }
     }
 }
 
