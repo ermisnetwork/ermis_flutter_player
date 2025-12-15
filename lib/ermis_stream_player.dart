@@ -1,32 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
-class ErmisStreamPlayerSDK {
-  static const MethodChannel _channel = MethodChannel('fmp4_stream_player');
-
-  static Future<bool> joinStream({
-    required String streamId,
-    required String token,
-  }) async {
-    try {
-      final result = await _channel.invokeMethod('startStreaming', {
-        'streamId': streamId,
-        'token': token,
-      });
-      return result == true;
-    } on PlatformException catch (e) {
-      debugPrint('Failed to start streaming: ${e.message}');
-      return false;
-    }
-  }
-
-  static Future<bool> leaveStream() async {
-    try {
-      final result = await _channel.invokeMethod('stopStreaming');
-      return result == true;
-    } on PlatformException catch (e) {
-      debugPrint('Failed to start streaming: ${e.message}');
-      return false;
-    }
-  }
-}
+export 'src/config/ermis_stream_config.dart';
+export 'src/ermis_stream_player.dart';
+export 'src/viewer/ermis_stream_player_view.dart';
+export 'src/viewer/ermis_viewer_controller.dart';
+export 'src/broadcaster/ermis_broadcaster_controller.dart';
+export 'src/broadcaster/ermis_broadcaster_preview.dart';
+export 'package:rtmp_broadcaster/camera.dart'
+    show availableCameras, CameraDescription, CameraException;

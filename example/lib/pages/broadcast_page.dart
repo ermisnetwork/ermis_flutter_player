@@ -1,22 +1,15 @@
+import 'package:ermis_stream_player/ermis_stream_player.dart';
 import 'package:flutter/material.dart';
-import 'package:rtmp_broadcaster/camera.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 
 class BroadcastPage extends StatefulWidget {
-  final List<CameraDescription> cameras;
-
-  const BroadcastPage({super.key, required this.cameras});
+  const BroadcastPage({super.key});
 
   @override
   State<BroadcastPage> createState() => _BroadcastPageState();
 }
 
-class _BroadcastPageState extends State<BroadcastPage>
-    with WidgetsBindingObserver {
-  CameraController? _controller;
-  bool _enableAudio = true;
-  bool _useOpenGL = true;
-  String _status = 'Ready to broadcast';
+class _BroadcastPageState extends State<BroadcastPage> {
+  final ErmisBroadcasterController _controller = ErmisBroadcasterController();
   final TextEditingController _ingestController = TextEditingController(
     text: 'rtmps://streaming.ermis.network:1939/Ermis-streaming',
   );
@@ -24,161 +17,162 @@ class _BroadcastPageState extends State<BroadcastPage>
     text: 'f198fc18-d5cb-4699-8225-03a2f9f60a03:4c6f28fff8160cfb',
   );
 
-  bool get _isControllerInitialized =>
-      _controller?.value.isInitialized ?? false;
-  bool get _isStreaming => _controller?.value.isStreamingVideoRtmp ?? false;
+  bool _isLoadingCamera = true;
+  bool _isBusy = false;
+  bool _audioEnabled = true;
+  String _status = 'Loading cameras...';
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _initFirstCamera();
+    _controller.addListener(_handleControllerChanged);
+    _loadCameras();
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
-    _ingestController.dispose();
-    _streamKeyController.dispose();
-    WakelockPlus.disable();
-    super.dispose();
-  }
-
-  Future<void> _initFirstCamera() async {
-    if (widget.cameras.isEmpty) {
-      setState(() => _status = 'No cameras available');
-      return;
-    }
-    await _setCamera(widget.cameras.first);
-  }
-
-  Future<void> _setCamera(CameraDescription description) async {
-    final previous = _controller;
-    _controller = CameraController(
-      description,
-      ResolutionPreset.medium,
-      enableAudio: _enableAudio,
-      androidUseOpenGL: _useOpenGL,
-    );
-
-    _controller!.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
+  void _handleControllerChanged() {
+    if (!mounted) return;
+    setState(() {
+      _audioEnabled = _controller.isAudioEnabled;
     });
+  }
 
+  Future<void> _loadCameras() async {
+    setState(() {
+      _isLoadingCamera = true;
+      _status = 'Loading cameras...';
+    });
     try {
-      await _controller!.initialize();
-      setState(() => _status = 'Camera ready');
-      await previous?.dispose();
+      final cameras = await availableCameras();
+      if (!mounted) return;
+      if (cameras.isEmpty) {
+        setState(() {
+          _isLoadingCamera = false;
+          _status = 'No cameras available';
+        });
+        return;
+      }
+      await _controller.init(cameras: cameras);
+      if (!mounted) return;
+      setState(() {
+        _isLoadingCamera = false;
+        _status = 'Camera ready';
+      });
     } on CameraException catch (e) {
-      setState(() => _status = 'Camera error: ${e.description ?? e.code}');
+      if (!mounted) return;
+      setState(() {
+        _isLoadingCamera = false;
+        _status = 'Camera error: ${e.description ?? e.code}';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingCamera = false;
+        _status = 'Camera error: $e';
+      });
     }
   }
 
-  @override
-  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (_controller == null) return;
-    if (state == AppLifecycleState.paused) {
-      if (_isStreaming) {
-        await _controller?.pauseVideoStreaming();
-      }
-    } else if (state == AppLifecycleState.resumed) {
-      if (_isStreaming) {
-        await _controller?.resumeVideoStreaming();
-      } else if (_isControllerInitialized) {
-        await _controller?.initialize();
-      }
-    }
-  }
-
-  Future<void> _startStreaming() async {
-    if (!_isControllerInitialized) {
-      setState(() => _status = 'Initialize the camera first');
-      return;
-    }
-
-    final url = _buildEndpoint();
-    if (url == null) {
+  Future<void> _startBroadcast() async {
+    final ingest = _ingestController.text.trim();
+    final streamKey = _streamKeyController.text.trim();
+    if (ingest.isEmpty || streamKey.isEmpty) {
       setState(() => _status = 'Enter ingest and stream key');
       return;
     }
+    setState(() {
+      _isBusy = true;
+      _status = 'Starting broadcast...';
+    });
 
     try {
-      await _controller!.startVideoStreaming(url);
-      await WakelockPlus.enable();
-      setState(() => _status = 'Broadcasting to $url');
+      await _controller.start(ingestUrl: ingest, streamKey: streamKey);
+      if (!mounted) return;
+      setState(() => _status = 'Broadcasting...');
     } on CameraException catch (e) {
+      if (!mounted) return;
       setState(() => _status = 'Start failed: ${e.description ?? e.code}');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = 'Start failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isBusy = false);
+      }
     }
   }
 
-  String? _buildEndpoint() {
-    final ingest = _ingestController.text.trim().replaceAll(RegExp(r'/+$'), '');
-    final key = _streamKeyController.text.trim();
-    if (ingest.isEmpty || key.isEmpty) return null;
-    return '$ingest/$key';
-  }
-
-  Future<void> _stopStreaming() async {
-    if (!_isStreaming) return;
+  Future<void> _stopBroadcast() async {
+    setState(() {
+      _isBusy = true;
+      _status = 'Stopping broadcast...';
+    });
     try {
-      await _controller!.stopVideoStreaming();
+      await _controller.stop();
+      if (!mounted) return;
       setState(() => _status = 'Broadcast stopped');
-    } on CameraException catch (e) {
-      setState(() => _status = 'Stop failed: ${e.description ?? e.code}');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = 'Stop failed: $e');
     } finally {
-      await WakelockPlus.disable();
+      if (mounted) {
+        setState(() => _isBusy = false);
+      }
     }
   }
 
   Future<void> _switchCamera() async {
-    if (widget.cameras.length < 2 || _controller == null) return;
-    final currentIndex = widget.cameras.indexOf(_controller!.description);
-    final nextIndex = (currentIndex + 1) % widget.cameras.length;
-    await _setCamera(widget.cameras[nextIndex]);
+    setState(() => _status = 'Switching camera...');
+    try {
+      await _controller.switchCamera();
+      if (!mounted) return;
+      setState(() => _status = 'Camera switched');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = 'Switch camera failed');
+    }
   }
 
   Future<void> _toggleAudio(bool value) async {
-    _enableAudio = value;
-    if (_controller != null) {
-      await _setCamera(_controller!.description);
+    setState(() => _audioEnabled = value);
+    try {
+      await _controller.setAudioEnabled(value);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _audioEnabled = !value;
+        _status = 'Audio update failed';
+      });
     }
   }
 
-  Future<void> _toggleOpenGL(bool value) async {
-    _useOpenGL = value;
-    if (_controller != null) {
-      await _setCamera(_controller!.description);
-    }
-  }
-
-  Widget _preview() {
-    if (_controller == null || !_isControllerInitialized) {
-      return const Center(
-        child: Text(
-          'Select a camera to preview',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-
-    return AspectRatio(
-      aspectRatio: _controller!.value.aspectRatio,
-      child: CameraPreview(_controller!),
-    );
+  @override
+  void dispose() {
+    _controller.removeListener(_handleControllerChanged);
+    _controller.dispose();
+    _ingestController.dispose();
+    _streamKeyController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isBroadcasting = _controller.isBroadcasting;
+    final bool canStart =
+        !_isLoadingCamera &&
+        !isBroadcasting &&
+        !_isBusy &&
+        _controller.cameraController != null;
+    final bool canStop = isBroadcasting && !_isBusy;
+
     return Column(
       children: [
         Expanded(
           child: Container(
             color: Colors.black,
             padding: const EdgeInsets.all(8),
-            child: Center(child: _preview()),
+            child: Center(
+              child: ErmisBroadcasterPreview(controller: _controller),
+            ),
           ),
         ),
         Container(
@@ -192,6 +186,13 @@ class _BroadcastPageState extends State<BroadcastPage>
                 'Status: $_status',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+              if (_controller.lastError != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Error: ${_controller.lastError}',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ],
               const SizedBox(height: 8),
               TextField(
                 controller: _ingestController,
@@ -213,7 +214,7 @@ class _BroadcastPageState extends State<BroadcastPage>
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _isStreaming ? null : _startStreaming,
+                      onPressed: canStart ? _startBroadcast : null,
                       icon: const Icon(Icons.wifi_tethering),
                       label: const Text('Start broadcast'),
                       style: ElevatedButton.styleFrom(
@@ -224,7 +225,7 @@ class _BroadcastPageState extends State<BroadcastPage>
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _isStreaming ? _stopStreaming : null,
+                      onPressed: canStop ? _stopBroadcast : null,
                       icon: const Icon(Icons.stop),
                       label: const Text('Stop'),
                       style: ElevatedButton.styleFrom(
@@ -239,7 +240,10 @@ class _BroadcastPageState extends State<BroadcastPage>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton.icon(
-                    onPressed: _switchCamera,
+                    onPressed:
+                        _controller.cameraController != null
+                            ? _switchCamera
+                            : null,
                     icon: const Icon(Icons.cameraswitch),
                     label: const Text('Switch camera'),
                   ),
@@ -247,17 +251,11 @@ class _BroadcastPageState extends State<BroadcastPage>
                     children: [
                       const Text('Audio'),
                       Switch(
-                        value: _enableAudio,
-                        onChanged: (value) => _toggleAudio(value),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      const Text('OpenGL'),
-                      Switch(
-                        value: _useOpenGL,
-                        onChanged: (value) => _toggleOpenGL(value),
+                        value: _audioEnabled,
+                        onChanged:
+                            _controller.cameraController == null
+                                ? null
+                                : (value) => _toggleAudio(value),
                       ),
                     ],
                   ),

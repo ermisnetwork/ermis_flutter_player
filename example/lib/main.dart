@@ -1,28 +1,15 @@
+import 'package:example/pages/viewer_page.dart';
 import 'package:flutter/material.dart';
-import 'package:rtmp_broadcaster/camera.dart';
 
 import 'pages/broadcast_page.dart';
-import 'pages/viewer_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final cameras = await _safeLoadCameras();
-  runApp(MyApp(cameras: cameras));
-}
-
-Future<List<CameraDescription>> _safeLoadCameras() async {
-  try {
-    return await availableCameras();
-  } on CameraException catch (e) {
-    debugPrint('Unable to load cameras: ${e.description ?? e.code}');
-    return [];
-  }
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final List<CameraDescription> cameras;
-
-  const MyApp({super.key, required this.cameras});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -36,10 +23,8 @@ class MyApp extends StatelessWidget {
               tabs: [Tab(text: 'Viewer'), Tab(text: 'Broadcaster')],
             ),
           ),
-          body: SafeArea(
-            child: TabBarView(
-              children: [const ViewerPage(), BroadcastPage(cameras: cameras)],
-            ),
+          body: const SafeArea(
+            child: TabBarView(children: [ViewerPage(), BroadcastPage()]),
           ),
         ),
       ),

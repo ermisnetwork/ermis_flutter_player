@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
   rtmp_broadcaster: ^2.3.4
+  wakelock_plus: ^1.2.6
 
 dev_dependencies:
   flutter_test:

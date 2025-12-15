@@ -1,8 +1,6 @@
 import 'package:ermis_stream_player/ermis_stream_player.dart';
 import 'package:flutter/material.dart';
 
-import '../widgets/fmp4_stream_player_view.dart';
-
 class ViewerPage extends StatefulWidget {
   const ViewerPage({super.key});
 
@@ -11,33 +9,88 @@ class ViewerPage extends StatefulWidget {
 }
 
 class _ViewerPageState extends State<ViewerPage> {
-  static const _streamId = 'f198fc18-d5cb-4699-8225-03a2f9f60a03';
-  static const _token =
-      'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMHhiYTcxZDJlYzEwZDllZGExZDU1OGIxZWY4NjA3ZGNjN2NhNmM5MzBkIiwiY2xpZW50X2lkIjoiMzNhZTc0NzMtNjMxNS00NDMzLTgyYjAtMmFmYzNhMzk5OWUyIiwiY2hhaW5faWQiOjEsInByb2plY3RfaWQiOiJlYzk2NDk3NS1hZTg0LTRhOGUtOTFhMS0yMjJjYTNhZWVlZjgiLCJhcGlrZXkiOiJzWGhjUHUwSm5lVWJRNlRHMnRYZVBLOE1DMnRCQUhuOSIsImVybWlzIjpmYWxzZSwiZXhwIjoxODY1NTI3NTE5MTUyLCJhZG1pbiI6ZmFsc2UsImdhdGUiOmZhbHNlfQ.Uj2h-a3uB0TH9DmPD6C8kaip5xkIkxkcH4mtkdUBLw4';
+  final ErmisViewerController _controller = ErmisViewerController();
+  final TextEditingController _streamIdController = TextEditingController(
+    text: '060f350f-9da8-422d-b14d-eb9642bea92a',
+  );
+  final TextEditingController _tokenController = TextEditingController(
+    text:
+        'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMHhiYTcxZDJlYzEwZDllZGExZDU1OGIxZWY4NjA3ZGNjN2NhNmM5MzBkIiwiY2xpZW50X2lkIjoiMzNhZTc0NzMtNjMxNS00NDMzLTgyYjAtMmFmYzNhMzk5OWUyIiwiY2hhaW5faWQiOjEsInByb2plY3RfaWQiOiJlYzk2NDk3NS1hZTg0LTRhOGUtOTFhMS0yMjJjYTNhZWVlZjgiLCJhcGlrZXkiOiJzWGhjUHUwSm5lVWJRNlRHMnRYZVBLOE1DMnRCQUhuOSIsImVybWlzIjpmYWxzZSwiZXhwIjoxODY1NTI3NTE5MTUyLCJhZG1pbiI6ZmFsc2UsImdhdGUiOmZhbHNlfQ.Uj2h-a3uB0TH9DmPD6C8kaip5xkIkxkcH4mtkdUBLw4',
+  );
 
   bool _isStreaming = false;
+  bool _isBusy = false;
   String _status = 'Ready';
 
-  Future<void> _startStream() async {
-    setState(() => _status = 'Connecting...');
+  @override
+  void dispose() {
+    _controller.dispose();
+    _streamIdController.dispose();
+    _tokenController.dispose();
+    super.dispose();
+  }
 
-    final success = await ErmisStreamPlayerSDK.joinStream(
-      streamId: _streamId,
-      token: _token,
-    );
+  Future<void> _startStream() async {
+    if (_isStreaming || _isBusy) return;
+    final streamId = _streamIdController.text.trim();
+    final token = _tokenController.text.trim();
+    if (streamId.isEmpty || token.isEmpty) {
+      setState(() => _status = 'Enter stream ID and token');
+      return;
+    }
 
     setState(() {
-      _isStreaming = success;
-      _status = success ? 'Streaming...' : 'Failed to connect';
+      _isBusy = true;
+      _status = 'Connecting...';
     });
+
+    try {
+      await _controller.start(streamId: streamId, token: token);
+      if (!mounted) return;
+      setState(() {
+        _isStreaming = true;
+        _status = 'Streaming...';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _status = 'Failed to connect';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+        });
+      }
+    }
   }
 
   Future<void> _stopStream() async {
-    final success = await ErmisStreamPlayerSDK.leaveStream();
+    if (!_isStreaming || _isBusy) return;
     setState(() {
-      _isStreaming = false;
-      _status = success ? 'Stopped' : 'Failed to stop';
+      _isBusy = true;
+      _status = 'Stopping...';
     });
+
+    try {
+      await _controller.stop();
+      if (!mounted) return;
+      setState(() {
+        _isStreaming = false;
+        _status = 'Stopped';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _status = 'Failed to stop';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+        });
+      }
+    }
   }
 
   @override
@@ -46,8 +99,8 @@ class _ViewerPageState extends State<ViewerPage> {
       children: [
         Expanded(
           child: ColoredBox(
-            color: Colors.white,
-            child: const Fmp4StreamPlayerView(),
+            color: Colors.black,
+            child: const ErmisStreamPlayerView(),
           ),
         ),
         Container(
@@ -61,26 +114,53 @@ class _ViewerPageState extends State<ViewerPage> {
         ),
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ElevatedButton.icon(
-                onPressed: _isStreaming ? null : _startStream,
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Start'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+              TextField(
+                controller: _streamIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Stream ID',
+                  border: OutlineInputBorder(),
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: _isStreaming ? _stopStream : null,
-                icon: const Icon(Icons.stop),
-                label: const Text('Stop'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
+              const SizedBox(height: 8),
+              TextField(
+                controller: _tokenController,
+                decoration: const InputDecoration(
+                  labelText: 'Token',
+                  border: OutlineInputBorder(),
                 ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          (!_isStreaming && !_isBusy) ? _startStream : null,
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Start'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          (_isStreaming && !_isBusy) ? _stopStream : null,
+                      icon: const Icon(Icons.stop),
+                      label: const Text('Stop'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -4,15 +4,30 @@ PODS:
     - Starscream (~> 4.0)
     - Swifter (~> 1.5.0)
   - Flutter (1.0.0)
+  - HaishinKit (1.0.13):
+    - Logboard (~> 2.1.3)
+  - Logboard (2.1.3)
+  - package_info_plus (0.4.5):
+    - Flutter
+  - rtmp_broadcaster (0.0.1):
+    - Flutter
+    - HaishinKit (~> 1.0.10)
   - Starscream (4.0.8)
   - Swifter (1.5.0)
+  - wakelock_plus (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - ermis_stream_player (from `.symlinks/plugins/ermis_stream_player/ios`)
   - Flutter (from `Flutter`)
+  - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
+  - rtmp_broadcaster (from `.symlinks/plugins/rtmp_broadcaster/ios`)
+  - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
 
 SPEC REPOS:
   trunk:
+    - HaishinKit
+    - Logboard
     - Starscream
     - Swifter
 
@@ -21,12 +36,23 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/ermis_stream_player/ios"
   Flutter:
     :path: Flutter
+  package_info_plus:
+    :path: ".symlinks/plugins/package_info_plus/ios"
+  rtmp_broadcaster:
+    :path: ".symlinks/plugins/rtmp_broadcaster/ios"
+  wakelock_plus:
+    :path: ".symlinks/plugins/wakelock_plus/ios"
 
 SPEC CHECKSUMS:
   ermis_stream_player: 90322e857d0fc8562c623b8e4c3844243e3486e0
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  HaishinKit: d1786896ace24065d466bde02356c5352ac001b0
+  Logboard: e74ec2d9941abd22f4db3a3ddcd0735011df92c7
+  package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
+  rtmp_broadcaster: 7a227445d04957ade2f7dc3e9bac1e3dc6b31d4e
   Starscream: 19b5533ddb925208db698f0ac508a100b884a1b9
   Swifter: e71dd674404923d7f03ebb03f3f222d1c570bc8e
+  wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
 
 PODFILE CHECKSUM: 251cb053df7158f337c0712f2ab29f4e0fa474ce
 
