@@ -1,5 +1,4 @@
-Ermis Stream Flutter Player
-===========================
+# Ermis Stream Flutter Player
 
 Flutter plugin giúp xây dựng ứng dụng livestream với hệ sinh thái Ermis Streaming. SDK cung cấp đầy đủ controller + widget để:
 
@@ -65,6 +64,40 @@ final ermis = ErmisStreamPlayer(
 
 ---
 
+## API REST: tạo stream mới
+
+SDK cung cấp tiện ích gọi API quản lý stream (hiện hỗ trợ tạo stream). Bạn cần cấu hình `apiBaseUrl` trỏ tới gateway, ví dụ:
+
+```dart
+final ermis = ErmisStreamPlayer(
+  config: ErmisStreamConfig(
+    apiBaseUrl: Uri.parse('https://daibo.ermis.network:9999'),
+  ),
+);
+
+final streamInfo = await ermis.createStream(
+  streamName: 'tudt01',
+  authToken: jwtToken,
+);
+
+print('Stream ID: ${streamInfo.streamId}');
+print('Watch link: ${streamInfo.link}');
+```
+
+- Nếu API trả JSON `{ "error_code": 401, "message": "Unauthorized" }`, SDK sẽ ném `ErmisStreamApiException`.
+- Bạn có thể override `baseUrl` ngay khi gọi `createStream` nếu cần trỏ tới endpoint khác.
+- `ErmisStreamInfo` chứa các trường `streamId`, `streamName`, `link`, `isLive`, `createdAt`, v.v… để bạn hiển thị trong UI.
++ Để lấy danh sách stream, gọi:
+```dart
+final streams = await ermis.listStreams(
+  authToken: jwtToken,
+  query: const ErmisStreamListQuery(page: 1, perPage: 20),
+);
+print('Total: ${streams.total}, first stream = ${streams.data.first.streamName}');
+```
+
+---
+
 ## Viewer: xem stream FMP4
 
 ```dart
@@ -93,6 +126,33 @@ const ErmisStreamPlayerView();
 ```
 
 > Lưu ý: controller tự quản lý `MethodChannel`. Không in log token ra console để tránh lộ thông tin nhạy cảm.
+
+### Lấy số người đang xem (viewer count)
+
+Từ phiên bản hiện tại, native plugin phát ra các sự kiện qua `EventChannel`. Bạn có thể lắng nghe stream bằng thuộc tính `controller.events`:
+
+```dart
+late final StreamSubscription<ErmisStreamEvent> _sub;
+
+@override
+void initState() {
+  super.initState();
+  _sub = viewer.events.listen((event) {
+    if (event.type == 'TotalViewerCount') {
+      setState(() {
+        currentViewers = event.totalViewers ?? 0;
+      });
+    }
+  });
+}
+
+@override
+void dispose() {
+  _sub.cancel();
+  unawaited(viewer.dispose());
+  super.dispose();
+}
+```
 
 ---
 
@@ -178,7 +238,3 @@ Tab “Broadcaster” dùng `ErmisBroadcasterController` + `ErmisBroadcasterPrev
 ## License
 
 MIT License © 2025 Ermis Network
-
-
-
-

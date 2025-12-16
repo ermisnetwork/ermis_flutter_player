@@ -9,11 +9,14 @@ public class Fmp4StreamPlayerPlugin: NSObject, FlutterPlugin {
     private var demuxer: Demuxer?
     private var webSocket: StarscreamWebSocket?
     private var playerViewController: Fmp4PlayerViewController?
+    private var eventSink: FlutterEventSink?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "fmp4_stream_player", binaryMessenger: registrar.messenger())
         let instance = Fmp4StreamPlayerPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
+        let eventChannel = FlutterEventChannel(name: "fmp4_stream_player/events", binaryMessenger: registrar.messenger())
+        eventChannel.setStreamHandler(instance)
 
         let factory = Fmp4StreamPlayerViewFactory(messenger: registrar.messenger(), plugin: instance)
         registrar.register(factory, withId: "fmp4_stream_player_view")
@@ -97,14 +100,7 @@ extension Fmp4StreamPlayerPlugin: Starscream.WebSocketDelegate {
         case .disconnected(let reason, let code):
             print("❌ WebSocket disconnected: \(reason) code: \(code)")
         case .text(let text):
-           if text.contains("videoConfig") && text.contains("audioConfig") {
-                   DispatchQueue.main.async {
-                       guard let playerVC = self.playerViewController else { return }
-                       guard let streamConfig = playerVC.getStreamConfig(config: text) else { return }
-                       playerVC.setupConfigFormat(text)
-                       print("✅ Demuxer initialized with codec: \(streamConfig.videoConfig.codec)")
-                   }
-               }
+            handleTextMessage(text)
         case .binary(let data):
             guard !data.isEmpty else { return }
             print("✅ binary data: \(data)")
@@ -116,6 +112,45 @@ extension Fmp4StreamPlayerPlugin: Starscream.WebSocketDelegate {
             print("🚫 WebSocket cancelled")
         default: break
         }
+    }
+}
+
+private extension Fmp4StreamPlayerPlugin {
+    func handleTextMessage(_ text: String) {
+        if let data = text.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+           let type = json["type"] as? String {
+            if type == "TotalViewerCount" {
+                let payload: [String: Any] = [
+                    "type": type,
+                    "streamId": json["stream_id"] ?? "",
+                    "totalViewers": json["total_viewers"] ?? 0
+                ]
+                eventSink?(payload)
+                return
+            }
+        }
+
+        if text.contains("videoConfig") && text.contains("audioConfig") {
+            DispatchQueue.main.async {
+                guard let playerVC = self.playerViewController else { return }
+                guard let streamConfig = playerVC.getStreamConfig(config: text) else { return }
+                playerVC.setupConfigFormat(text)
+                print("✅ Demuxer initialized with codec: \(streamConfig.videoConfig.codec)")
+            }
+        }
+    }
+}
+
+extension Fmp4StreamPlayerPlugin: FlutterStreamHandler {
+    public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        eventSink = events
+        return nil
+    }
+
+    public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        eventSink = nil
+        return nil
     }
 }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
@@ -11,8 +12,11 @@ import io.flutter.plugin.platform.PlatformViewFactory
 import io.flutter.plugin.common.StandardMessageCodec
 import com.google.android.exoplayer2.ui.PlayerView
 
-class Fmp4StreamPlayerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+class Fmp4StreamPlayerPlugin : FlutterPlugin,
+    MethodChannel.MethodCallHandler,
+    EventChannel.StreamHandler {
     private lateinit var channel: MethodChannel
+    private lateinit var eventChannel: EventChannel
     private lateinit var appContext: Context
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -20,6 +24,8 @@ class Fmp4StreamPlayerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         FMP4StreamPlayerManager.init(appContext)
         channel = MethodChannel(binding.binaryMessenger, "fmp4_stream_player")
         channel.setMethodCallHandler(this)
+        eventChannel = EventChannel(binding.binaryMessenger, "fmp4_stream_player/events")
+        eventChannel.setStreamHandler(this)
 
         binding.platformViewRegistry.registerViewFactory(
             "fmp4_stream_player_view",
@@ -29,6 +35,8 @@ class Fmp4StreamPlayerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        eventChannel.setStreamHandler(null)
+        FMP4StreamPlayerManager.setEventSink(null)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -68,6 +76,14 @@ class Fmp4StreamPlayerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
             else -> result.notImplemented()
         }
+    }
+
+    override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+        FMP4StreamPlayerManager.setEventSink(events)
+    }
+
+    override fun onCancel(arguments: Any?) {
+        FMP4StreamPlayerManager.setEventSink(null)
     }
 }
 

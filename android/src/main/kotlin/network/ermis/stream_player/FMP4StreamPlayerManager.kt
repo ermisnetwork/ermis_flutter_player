@@ -11,6 +11,7 @@ import com.google.android.exoplayer2.ui.PlayerView
 import com.google.android.exoplayer2.upstream.DataSource
 import com.google.android.exoplayer2.upstream.DataSpec
 import com.google.android.exoplayer2.upstream.TransferListener
+import io.flutter.plugin.common.EventChannel
 import okhttp3.*
 import okio.ByteString
 import java.io.IOException
@@ -18,6 +19,8 @@ import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
+import org.json.JSONException
+import org.json.JSONObject
 
 object FMP4StreamPlayerManager {
 
@@ -35,6 +38,7 @@ object FMP4StreamPlayerManager {
     private var webSocket: WebSocket? = null
     private var workerUrl: String? = null
     var isStreaming = false
+    private var eventSink: EventChannel.EventSink? = null
 
     private var lastAudioPts: Long = 0
     private var lastVideoPts: Long = 0
@@ -48,6 +52,10 @@ object FMP4StreamPlayerManager {
 
     fun attachPlayerToView(playerView: PlayerView) {
         playerView.player = player
+    }
+
+    fun setEventSink(sink: EventChannel.EventSink?) {
+        eventSink = sink
     }
 
     fun startStream(url: String) {
@@ -185,6 +193,27 @@ object FMP4StreamPlayerManager {
             Log.d(TAG, "Received stream configuration payload")
             // Android ExoPlayer does not require manual demuxer configuration for this payload,
             // but we keep the hook for parity with iOS implementation.
+            return
+        }
+        try {
+            val json = JSONObject(message)
+            when (json.optString("type")) {
+                "TotalViewerCount" -> {
+                    val payload = mapOf(
+                        "type" to "TotalViewerCount",
+                        "streamId" to json.optString("stream_id"),
+                        "totalViewers" to json.optInt("total_viewers")
+                    )
+                    mainHandler.post { eventSink?.success(payload) }
+                }
+                else -> {
+                    if (json.has("videoConfig") && json.has("audioConfig")) {
+                        Log.d(TAG, "Received stream configuration payload")
+                    }
+                }
+            }
+        } catch (e: JSONException) {
+            Log.w(TAG, "Failed to parse socket text", e)
         }
     }
 }

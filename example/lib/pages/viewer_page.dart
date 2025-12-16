@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ermis_stream_player/ermis_stream_player.dart';
 import 'package:flutter/material.dart';
 
@@ -11,19 +13,35 @@ class ViewerPage extends StatefulWidget {
 class _ViewerPageState extends State<ViewerPage> {
   final ErmisViewerController _controller = ErmisViewerController();
   final TextEditingController _streamIdController = TextEditingController(
-    text: '060f350f-9da8-422d-b14d-eb9642bea92a',
+    text: 'f198fc18-d5cb-4699-8225-03a2f9f60a03',
   );
   final TextEditingController _tokenController = TextEditingController(
     text:
-        'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMHhiYTcxZDJlYzEwZDllZGExZDU1OGIxZWY4NjA3ZGNjN2NhNmM5MzBkIiwiY2xpZW50X2lkIjoiMzNhZTc0NzMtNjMxNS00NDMzLTgyYjAtMmFmYzNhMzk5OWUyIiwiY2hhaW5faWQiOjEsInByb2plY3RfaWQiOiJlYzk2NDk3NS1hZTg0LTRhOGUtOTFhMS0yMjJjYTNhZWVlZjgiLCJhcGlrZXkiOiJzWGhjUHUwSm5lVWJRNlRHMnRYZVBLOE1DMnRCQUhuOSIsImVybWlzIjpmYWxzZSwiZXhwIjoxODY1NTI3NTE5MTUyLCJhZG1pbiI6ZmFsc2UsImdhdGUiOmZhbHNlfQ.Uj2h-a3uB0TH9DmPD6C8kaip5xkIkxkcH4mtkdUBLw4',
+        'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMHhiYTcxZDJlYzEwZDllZGExZDU1OGIxZWY4NjA3ZGNjN2NhNmM5MzBkIiwiY2xpZW50X2lkIjoiMzNhZTc0NzMtNjMxNS00NDMzLTgyYjAtMmFmYzNhMzk5OWUyIiwiY2hhaW5faWQiOjEsInByb2plY3RfaWQiOiJlYzk2NDk3NS1hZTg0LTRhOGUtOTFhMS0yMjJjYTNhZWVlZjgiLCJhcGlrZXkiOiJzWGhjUHUwSm5lVWJRNlRHMnRYZVBLOE1DMnRCQUhuOSIsImVybWlzIjpmYWxzZSwiZXhwIjoxODY1ODY5MDM3NTk3LCJhZG1pbiI6ZmFsc2UsImdhdGUiOmZhbHNlfQ.7dLKdc2o6VKi5TO32cxJgmPFl4bE2MJmU0garm5Ob8o',
   );
 
   bool _isStreaming = false;
   bool _isBusy = false;
   String _status = 'Ready';
+  int? _viewerCount;
+  StreamSubscription<ErmisStreamEvent>? _eventSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventSub = _controller.events.listen((event) {
+      if (event.type == 'TotalViewerCount') {
+        if (!mounted) return;
+        setState(() {
+          _viewerCount = event.totalViewers;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _eventSub?.cancel();
     _controller.dispose();
     _streamIdController.dispose();
     _tokenController.dispose();
@@ -108,7 +126,7 @@ class _ViewerPageState extends State<ViewerPage> {
           color: Colors.grey[200],
           width: double.infinity,
           child: Text(
-            'Status: $_status',
+            'Status: $_status${_viewerCount != null ? ' • Viewers: $_viewerCount' : ''}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
