@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:ermis_stream_player/ermis_stream_player.dart';
 import 'package:flutter/material.dart';
 
 class BroadcastPage extends StatefulWidget {
-  const BroadcastPage({super.key});
+  const BroadcastPage({super.key, this.streamInfo, this.player});
+
+  final ErmisStreamInfo? streamInfo;
+  final ErmisStreamPlayer? player;
 
   @override
   State<BroadcastPage> createState() => _BroadcastPageState();
@@ -88,6 +93,7 @@ class _BroadcastPageState extends State<BroadcastPage> {
       await _controller.start(ingestUrl: ingest, streamKey: streamKey);
       if (!mounted) return;
       setState(() => _status = 'Broadcasting...');
+      await _updateLiveStatus(true);
     } on CameraException catch (e) {
       if (!mounted) return;
       setState(() => _status = 'Start failed: ${e.description ?? e.code}');
@@ -110,6 +116,7 @@ class _BroadcastPageState extends State<BroadcastPage> {
       await _controller.stop();
       if (!mounted) return;
       setState(() => _status = 'Broadcast stopped');
+      await _updateLiveStatus(false);
     } catch (e) {
       if (!mounted) return;
       setState(() => _status = 'Stop failed: $e');
@@ -145,12 +152,30 @@ class _BroadcastPageState extends State<BroadcastPage> {
     }
   }
 
+  Future<void> _updateLiveStatus(bool isLive) async {
+    final stream = widget.streamInfo;
+    final player = widget.player;
+    if (stream == null || player == null) return;
+    try {
+      await player.updateStream(
+        streamId: stream.streamId,
+        request: ErmisStreamUpdateRequest(isLive: isLive),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update stream state: $e')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _controller.removeListener(_handleControllerChanged);
     _controller.dispose();
     _ingestController.dispose();
     _streamKeyController.dispose();
+    unawaited(_updateLiveStatus(false));
     super.dispose();
   }
 
@@ -186,6 +211,10 @@ class _BroadcastPageState extends State<BroadcastPage> {
                 'Status: $_status',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+              if (widget.streamInfo != null) ...[
+                const SizedBox(height: 4),
+                Text('Stream: ${widget.streamInfo!.streamName}'),
+              ],
               if (_controller.lastError != null) ...[
                 const SizedBox(height: 4),
                 Text(

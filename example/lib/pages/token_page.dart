@@ -25,7 +25,11 @@ class _TokenPageState extends State<TokenPage> {
   void initState() {
     super.initState();
     _baseUrlController = TextEditingController(text: widget.initialBaseUrl);
-    _tokenController = TextEditingController(text: widget.initialToken ?? '');
+    _tokenController = TextEditingController(
+      text:
+          widget.initialToken ??
+          'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMmFkNjZkNmMtZDkyOS00NmJkLThkNDktOWZlYTVkMTlhM2ExIiwiY2xpZW50X2lkIjoiYmE3Mzk4YzQtNjdhZi00YzgyLWIyZjMtNDZiOWNhM2Y4MTExIiwiYXBwX25hbWUiOiJFcm1pcy1zdHJlYW1pbmciLCJleHAiOjE3NjU5NTY4OTE2MzQsInJvbGVfbmFtZSI6ImNsaWVudF9hZG1pbiIsInBlcm1pc3Npb25zIjpbMSwyLDMsNCw1LDksMTEsMTIsMTMsMTQsMTUsMTYsMTcsMTgsMTksMjAsMjEsMjIsMjMsMjQsMjUsMjYsMjcsMjgsMjksMzAsMzEsMzIsMzMsMzQsMzUsMzYsMzcsMzgsMzksNDAsNDUsNDcsNDgsNDldfQ.DkSYDy6c_DVPxiOFJRkJ2PayTm4RvtIEvE1OpR2la4A',
+    );
   }
 
   @override

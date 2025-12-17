@@ -2,9 +2,16 @@ import 'package:ermis_stream_player/ermis_stream_player.dart';
 import 'package:flutter/material.dart';
 
 class StreamListPage extends StatefulWidget {
-  const StreamListPage({super.key, required this.player});
+  const StreamListPage({
+    super.key,
+    required this.player,
+    required this.onCreateStream,
+    required this.onStreamSelected,
+  });
 
   final ErmisStreamPlayer? player;
+  final VoidCallback onCreateStream;
+  final ValueChanged<ErmisStreamInfo> onStreamSelected;
 
   @override
   State<StreamListPage> createState() => _StreamListPageState();
@@ -52,6 +59,12 @@ class _StreamListPageState extends State<StreamListPage> {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Load streams'),
               ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: widget.onCreateStream,
+                icon: const Icon(Icons.add),
+                label: const Text('Create'),
+              ),
             ],
           ),
         ),
@@ -94,6 +107,7 @@ class _StreamListPageState extends State<StreamListPage> {
                                   : Icons.pause_circle,
                               color: stream.isLive ? Colors.green : Colors.grey,
                             ),
+                            onTap: () => widget.onStreamSelected(stream),
                           );
                         },
                       );

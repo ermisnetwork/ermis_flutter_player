@@ -5,7 +5,6 @@ import 'pages/broadcast_page.dart';
 import 'pages/create_stream_page.dart';
 import 'pages/stream_list_page.dart';
 import 'pages/token_page.dart';
-import 'pages/update_stream_page.dart';
 import 'pages/viewer_page.dart';
 
 Future<void> main() async {
@@ -54,22 +53,39 @@ class _ErmisDemoHomeState extends State<ErmisDemoHome> {
     });
   }
 
+  void _openCreateStream() {
+    final player = _player;
+    if (player == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please configure token first')),
+      );
+      return;
+    }
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => CreateStreamPage(player: player)));
+  }
+
+  void _openBroadcaster(ErmisStreamInfo stream) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BroadcastPage(streamInfo: stream, player: _player),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 6,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Ermis Stream Player'),
           bottom: const TabBar(
-            isScrollable: true,
             tabs: [
-              Tab(text: 'Auth'),
+              Tab(text: 'Settings'),
               Tab(text: 'Streams'),
-              Tab(text: 'Create'),
-              Tab(text: 'Update'),
               Tab(text: 'Viewer'),
-              Tab(text: 'Broadcaster'),
             ],
           ),
         ),
@@ -81,11 +97,12 @@ class _ErmisDemoHomeState extends State<ErmisDemoHome> {
                 initialToken: _token,
                 onSaved: _updateAuth,
               ),
-              StreamListPage(player: _player),
-              CreateStreamPage(player: _player),
-              UpdateStreamPage(player: _player),
+              StreamListPage(
+                player: _player,
+                onCreateStream: _openCreateStream,
+                onStreamSelected: _openBroadcaster,
+              ),
               const ViewerPage(),
-              const BroadcastPage(),
             ],
           ),
         ),
