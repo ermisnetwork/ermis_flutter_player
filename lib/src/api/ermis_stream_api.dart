@@ -8,6 +8,7 @@ import 'ermis_api_client.dart';
 import 'models/exceptions/ermis_stream_api_exception.dart';
 import 'models/request/ermis_stream_list_conditions.dart';
 import 'models/request/ermis_stream_list_query.dart';
+import 'models/request/ermis_stream_update_request.dart';
 import 'models/response/ermis_stream_list_response.dart';
 
 class ErmisStreamApi {
@@ -28,7 +29,10 @@ class ErmisStreamApi {
 
     final token = await _resolveAuthToken(authToken);
     final headers = <String, String>{'Authorization': token};
-    final payload = <String, dynamic>{'stream_name': streamName};
+    final payload = <String, dynamic>{
+      'stream_name': streamName,
+      'stream_method': 'software',
+    };
 
     try {
       final response = await _client.postJson<Map<String, dynamic>>(
@@ -77,6 +81,43 @@ class ErmisStreamApi {
       final data = response.data;
       if (data is Map<String, dynamic>) {
         return ErmisStreamListResponse.fromJson(data);
+      }
+      throw ErmisStreamApiException(
+        statusCode: response.statusCode,
+        message: 'Unexpected response format',
+      );
+    } on DioException catch (e) {
+      _log('Dio error: ${e.message}');
+      throw _mapDioException(e);
+    }
+  }
+
+  Future<ErmisStreamInfo> updateStream({
+    required String streamId,
+    required ErmisStreamUpdateRequest request,
+    String? authToken,
+    Uri? baseUrl,
+  }) async {
+    if (streamId.trim().isEmpty) {
+      throw ArgumentError.value(streamId, 'streamId', 'Cannot be empty');
+    }
+    if (!request.hasData) {
+      throw ArgumentError('Provide at least one field to update.');
+    }
+
+    final token = await _resolveAuthToken(authToken);
+    final headers = <String, String>{'Authorization': token};
+
+    try {
+      final response = await _client.putJson<Map<String, dynamic>>(
+        '/stream-gate/streams/$streamId',
+        data: request.toJson(),
+        headers: headers,
+        baseUrl: baseUrl,
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return ErmisStreamInfo.fromJson(data);
       }
       throw ErmisStreamApiException(
         statusCode: response.statusCode,

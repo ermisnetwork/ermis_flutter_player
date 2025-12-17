@@ -35,6 +35,21 @@ class ErmisApiClient {
     );
   }
 
+  Future<Response<T>> putJson<T>(
+    String path, {
+    required Map<String, dynamic> data,
+    Map<String, String>? headers,
+    Uri? baseUrl,
+  }) {
+    return _request(
+      method: 'PUT',
+      path: path,
+      data: data,
+      headers: headers,
+      baseUrl: baseUrl,
+    );
+  }
+
   Future<Response<T>> _request<T>({
     required String method,
     required String path,

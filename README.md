@@ -93,6 +93,15 @@ final streams = await ermis.listStreams(
   query: const ErmisStreamListQuery(page: 1, perPage: 20),
 );
 print('Total: ${streams.total}, first stream = ${streams.data.first.streamName}');
+
+// Update stream fields (all optional). Nếu stream đang live, chỉ nên set isLive.
+await ermis.updateStream(
+  streamId: streams.data.first.streamId,
+  request: const ErmisStreamUpdateRequest(
+    streamMethod: 'software',
+    isLive: true,
+  ),
+);
 ```
 
 ---

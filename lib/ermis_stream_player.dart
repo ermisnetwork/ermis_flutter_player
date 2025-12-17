@@ -3,6 +3,7 @@ export 'src/api/models/exceptions/ermis_stream_api_exception.dart';
 export 'src/api/models/response/ermis_stream_info.dart';
 export 'src/api/models/request/ermis_stream_list_conditions.dart';
 export 'src/api/models/request/ermis_stream_list_query.dart';
+export 'src/api/models/request/ermis_stream_update_request.dart';
 export 'src/api/models/response/ermis_stream_list_response.dart';
 export 'src/config/ermis_stream_config.dart';
 export 'src/ermis_stream_player.dart';
