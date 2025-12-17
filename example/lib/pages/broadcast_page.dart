@@ -7,11 +7,11 @@ class BroadcastPage extends StatefulWidget {
   const BroadcastPage({
     super.key,
     required this.streamInfo,
-    required this.player,
+    required this.controllerFactory,
   });
 
   final ErmisStreamInfo streamInfo;
-  final ErmisStreamPlayer player;
+  final ErmisBroadcasterControllerFactory controllerFactory;
 
   @override
   State<BroadcastPage> createState() => _BroadcastPageState();
@@ -28,7 +28,7 @@ class _BroadcastPageState extends State<BroadcastPage> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.player.broadcaster();
+    _controller = widget.controllerFactory.create();
     _controller.addListener(_handleControllerChanged);
     _loadCameras();
   }

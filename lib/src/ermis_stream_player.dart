@@ -6,22 +6,29 @@ import 'api/models/request/ermis_stream_list_query.dart';
 import 'api/models/request/ermis_stream_update_request.dart';
 import 'api/models/response/ermis_stream_list_response.dart';
 import 'broadcaster/ermis_broadcaster_controller.dart';
+import 'broadcaster/ermis_broadcaster_controller_factory.dart';
 import 'config/ermis_stream_config.dart';
 import 'viewer/ermis_viewer_controller.dart';
 
 class ErmisStreamPlayer {
   final ErmisStreamApi _api;
   final ErmisStreamConfig config;
+  late final ErmisBroadcasterControllerFactory broadcasterFactory;
 
   ErmisStreamPlayer({this.config = const ErmisStreamConfig()})
-    : _api = ErmisStreamApi(config: config);
+    : _api = ErmisStreamApi(config: config) {
+    broadcasterFactory = ErmisBroadcasterControllerFactory(
+      config: config,
+      api: _api,
+    );
+  }
 
   ErmisViewerController viewer() {
     return ErmisViewerController(config: config);
   }
 
   ErmisBroadcasterController broadcaster() {
-    return ErmisBroadcasterController(config: config, api: _api);
+    return broadcasterFactory.create();
   }
 
   Future<ErmisStreamInfo> createStream({required String streamName}) {

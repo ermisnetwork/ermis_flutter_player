@@ -61,7 +61,7 @@ final ermis = ErmisStreamPlayer(
 );
 ```
 
-`ErmisStreamConfig` chỉ lưu thông tin để dùng trong tương lai; hiện tại controller chưa gọi network từ config nhưng bạn có thể truyền trước để đảm bảo tương thích khi SDK mở rộng. Thuộc tính `streamBaseUrl` được sử dụng khi phát livestream RTMP để dựng endpoint dạng `BASE_SERVER_URL/app_name/stream_key`.
+`ErmisStreamConfig` cung cấp chung base URL, timeout, logger và provider token cho mọi controller tạo ra từ `ErmisStreamPlayer`. `apiBaseUrl` được dùng cho các API create/list/update stream; `streamBaseUrl` + `app_name`/`stream_key` giúp broadcaster dựng ingest RTMP; `authTokenProvider` được truyền cho mọi request cần Bearer token. Bạn có thể set trước để controller hoạt động thống nhất trong suốt vòng đời app.
 
 ---
 
@@ -220,7 +220,15 @@ Controller sẽ:
 
 ---
 
-## Ví dụ
+## Ví dụ (thư mục `example/`)
+
+Project mẫu minh hoạ toàn bộ luồng làm việc của SDK:
+
+1. `example/lib/main.dart` khởi tạo `ErmisStreamPlayer` với `ErmisStreamConfig` (API base + stream base + token) và truyền xuống các màn hình.
+2. Tab “Settings” (`TokenPage`) cho phép nhập lại base URL/token; sau khi lưu, player sẽ được dựng lại với config mới.
+3. Tab “Streams” (`StreamListPage`) gọi `player.listStreams`, hiển thị danh sách và cho phép tạo stream mới. Chọn một stream sẽ mở màn phát.
+4. Màn “Broadcaster” (`BroadcastPage`) nhận `ErmisStreamInfo` và `player.broadcasterFactory`, tạo `ErmisBroadcasterController` thông qua factory rồi start/stop bằng `controller.start(streamInfo: ...)` và `controller.stop()`. Controller sẽ tự gọi API `updateStream` để xin stream key, xây ingest URL từ `streamBaseUrl/app_name/stream_key`, bật wakelock và đồng bộ trạng thái `is_live`.
+5. Tab “Viewer” (`ViewerPage`) dùng `ErmisViewerController` + `ErmisStreamPlayerView` để xem stream theo `stream_id` + `token`.
 
 Chạy app mẫu:
 
@@ -229,9 +237,12 @@ cd example
 flutter run
 ```
 
-Tab “Viewer” sử dụng `ErmisViewerController` + `ErmisStreamPlayerView`.
+Luồng sử dụng đề xuất:
 
-Tab “Broadcaster” dùng `ErmisBroadcasterController` + `ErmisBroadcasterPreview`, tự động dựng ingest từ `ErmisStreamInfo` và `streamBaseUrl` cấu hình sẵn.
+1. Mở tab “Settings”, nhập `API base URL`, `Stream base URL (RTMP)` và Bearer token hợp lệ rồi lưu.
+2. Sang tab “Streams”, nhấn “Load streams” hoặc “Create” để tạo stream mới. Chọn stream muốn phát → mở màn Broadcaster.
+3. Ở màn Broadcaster, nhấn “Start broadcast” để bắt đầu đẩy video, “Stop” để dừng. Controller sẽ tự gọi API cập nhật trạng thái live nên không cần thao tác bổ sung.
+4. Tab “Viewer” nhập `stream_id` + token để test playback (tùy backend yêu cầu thêm `token`).
 
 ---
 

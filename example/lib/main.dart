@@ -120,7 +120,11 @@ class _ErmisDemoHomeState extends State<ErmisDemoHome> {
     }
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BroadcastPage(streamInfo: stream, player: player),
+        builder:
+            (_) => BroadcastPage(
+              streamInfo: stream,
+              controllerFactory: player.broadcasterFactory,
+            ),
       ),
     );
   }
