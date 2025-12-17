@@ -20,14 +20,12 @@ class ErmisStreamApi {
 
   Future<ErmisStreamInfo> createStream({
     required String streamName,
-    String? authToken,
-    Uri? baseUrl,
   }) async {
     if (streamName.trim().isEmpty) {
       throw ArgumentError.value(streamName, 'streamName', 'Cannot be empty');
     }
 
-    final token = await _resolveAuthToken(authToken);
+    final token = await _resolveAuthToken();
     final headers = <String, String>{'Authorization': token};
     final payload = <String, dynamic>{
       'stream_name': streamName,
@@ -39,7 +37,6 @@ class ErmisStreamApi {
         '/stream-gate/streams',
         data: payload,
         headers: headers,
-        baseUrl: baseUrl,
       );
 
       final data = response.data;
@@ -59,12 +56,10 @@ class ErmisStreamApi {
   }
 
   Future<ErmisStreamListResponse> listStreams({
-    String? authToken,
     ErmisStreamListQuery? query,
     ErmisStreamListConditions? conditions,
-    Uri? baseUrl,
   }) async {
-    final token = await _resolveAuthToken(authToken);
+    final token = await _resolveAuthToken();
     final headers = <String, String>{'Authorization': token};
     final payload = <String, dynamic>{
       'list_query': query?.toJson() ?? const ErmisStreamListQuery().toJson(),
@@ -76,7 +71,6 @@ class ErmisStreamApi {
         '/stream-gate/streams/list',
         data: payload,
         headers: headers,
-        baseUrl: baseUrl,
       );
       final data = response.data;
       if (data is Map<String, dynamic>) {
@@ -95,8 +89,6 @@ class ErmisStreamApi {
   Future<ErmisStreamInfo> updateStream({
     required String streamId,
     required ErmisStreamUpdateRequest request,
-    String? authToken,
-    Uri? baseUrl,
   }) async {
     if (streamId.trim().isEmpty) {
       throw ArgumentError.value(streamId, 'streamId', 'Cannot be empty');
@@ -105,7 +97,7 @@ class ErmisStreamApi {
       throw ArgumentError('Provide at least one field to update.');
     }
 
-    final token = await _resolveAuthToken(authToken);
+    final token = await _resolveAuthToken();
     final headers = <String, String>{'Authorization': token};
 
     try {
@@ -113,7 +105,6 @@ class ErmisStreamApi {
         '/stream-gate/streams/$streamId',
         data: request.toJson(),
         headers: headers,
-        baseUrl: baseUrl,
       );
       final data = response.data;
       if (data is Map<String, dynamic>) {
@@ -133,9 +124,8 @@ class ErmisStreamApi {
     config.logger?.call('[ErmisStreamApi] $message');
   }
 
-  Future<String> _resolveAuthToken(String? token) async {
-    final String? providedToken =
-        token ?? await config.authTokenProvider?.call();
+  Future<String> _resolveAuthToken() async {
+    final String? providedToken = await config.authTokenProvider?.call();
     if (providedToken == null || providedToken.trim().isEmpty) {
       throw StateError(
         'Authentication token is required. '

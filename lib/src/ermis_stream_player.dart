@@ -26,41 +26,24 @@ class ErmisStreamPlayer {
 
   Future<ErmisStreamInfo> createStream({
     required String streamName,
-    String? authToken,
-    Uri? baseUrl,
   }) {
-    return _api.createStream(
-      streamName: streamName,
-      authToken: authToken,
-      baseUrl: baseUrl,
-    );
+    return _api.createStream(streamName: streamName);
   }
 
   Future<ErmisStreamListResponse> listStreams({
-    String? authToken,
     ErmisStreamListQuery? query,
     ErmisStreamListConditions? conditions,
-    Uri? baseUrl,
   }) {
     return _api.listStreams(
-      authToken: authToken,
       query: query,
       conditions: conditions,
-      baseUrl: baseUrl,
     );
   }
 
   Future<ErmisStreamInfo> updateStream({
     required String streamId,
     required ErmisStreamUpdateRequest request,
-    String? authToken,
-    Uri? baseUrl,
   }) {
-    return _api.updateStream(
-      streamId: streamId,
-      request: request,
-      authToken: authToken,
-      baseUrl: baseUrl,
-    );
+    return _api.updateStream(streamId: streamId, request: request);
   }
 }
