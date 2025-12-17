@@ -4,17 +4,21 @@ import 'package:ermis_stream_player/ermis_stream_player.dart';
 import 'package:flutter/material.dart';
 
 class BroadcastPage extends StatefulWidget {
-  const BroadcastPage({super.key, required this.streamInfo, this.player});
+  const BroadcastPage({
+    super.key,
+    required this.streamInfo,
+    required this.player,
+  });
 
   final ErmisStreamInfo streamInfo;
-  final ErmisStreamPlayer? player;
+  final ErmisStreamPlayer player;
 
   @override
   State<BroadcastPage> createState() => _BroadcastPageState();
 }
 
 class _BroadcastPageState extends State<BroadcastPage> {
-  final ErmisBroadcasterController _controller = ErmisBroadcasterController();
+  late final ErmisBroadcasterController _controller;
 
   bool _isLoadingCamera = true;
   bool _isBusy = false;
@@ -24,6 +28,7 @@ class _BroadcastPageState extends State<BroadcastPage> {
   @override
   void initState() {
     super.initState();
+    _controller = widget.player.broadcaster();
     _controller.addListener(_handleControllerChanged);
     _loadCameras();
   }
@@ -81,7 +86,6 @@ class _BroadcastPageState extends State<BroadcastPage> {
       await _controller.start(streamInfo: widget.streamInfo);
       if (!mounted) return;
       setState(() => _status = 'Broadcasting...');
-      await _updateLiveStatus(true);
     } on CameraException catch (e) {
       if (!mounted) return;
       setState(() => _status = 'Start failed: ${e.description ?? e.code}');
@@ -104,7 +108,6 @@ class _BroadcastPageState extends State<BroadcastPage> {
       await _controller.stop();
       if (!mounted) return;
       setState(() => _status = 'Broadcast stopped');
-      await _updateLiveStatus(false);
     } catch (e) {
       if (!mounted) return;
       setState(() => _status = 'Stop failed: $e');
@@ -140,28 +143,10 @@ class _BroadcastPageState extends State<BroadcastPage> {
     }
   }
 
-  Future<void> _updateLiveStatus(bool isLive) async {
-    final player = widget.player;
-    if (player == null) return;
-    final stream = widget.streamInfo;
-    try {
-      await player.updateStream(
-        streamId: stream.streamId,
-        request: ErmisStreamUpdateRequest(isLive: isLive),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update stream state: $e')),
-      );
-    }
-  }
-
   @override
   void dispose() {
     _controller.removeListener(_handleControllerChanged);
     _controller.dispose();
-    unawaited(_updateLiveStatus(false));
     super.dispose();
   }
 

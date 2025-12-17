@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'package:rtmp_broadcaster/camera.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../api/ermis_stream_api.dart';
+import '../api/models/request/ermis_stream_update_request.dart';
 import '../api/models/response/ermis_stream_info.dart';
 import '../config/ermis_stream_config.dart';
 
@@ -20,10 +22,12 @@ class ErmisBroadcasterController extends ChangeNotifier
     with WidgetsBindingObserver {
   static const ResolutionPreset _resolutionPreset = ResolutionPreset.medium;
 
-  ErmisBroadcasterController({ErmisStreamConfig? config})
-    : config = config ?? const ErmisStreamConfig();
+  ErmisBroadcasterController({ErmisStreamConfig? config, ErmisStreamApi? api})
+    : config = config ?? const ErmisStreamConfig(),
+      _api = api ?? ErmisStreamApi(config: config ?? const ErmisStreamConfig());
 
   final ErmisStreamConfig config;
+  final ErmisStreamApi _api;
   ErmisBroadcasterState _state = ErmisBroadcasterState.idle;
   CameraController? _cameraController;
   List<CameraDescription> _cameras = const [];
@@ -32,6 +36,7 @@ class ErmisBroadcasterController extends ChangeNotifier
   bool _audioEnabled = true;
   final bool _androidUseOpenGL = true;
   bool _lifecycleAttached = false;
+  ErmisStreamInfo? _activeStream;
 
   ErmisBroadcasterState get state => _state;
   CameraController? get cameraController => _cameraController;
@@ -65,33 +70,65 @@ class ErmisBroadcasterController extends ChangeNotifier
       return;
     }
 
-    final endpoint = _buildEndpoint(streamInfo);
+    _lastError = null;
+    _setState(ErmisBroadcasterState.initializing);
+
+    late ErmisStreamInfo refreshedStream;
+    try {
+      refreshedStream = await _updateLiveStatus(
+        streamId: streamInfo.streamId,
+        isLive: true,
+      );
+    } catch (e) {
+      _setError('Unable to start broadcast: $e');
+      rethrow;
+    }
+
+    final endpoint = _buildEndpoint(refreshedStream);
 
     try {
-      _lastError = null;
-      _setState(ErmisBroadcasterState.initializing);
+      _activeStream = refreshedStream;
       await controller.startVideoStreaming(endpoint);
       await WakelockPlus.enable();
       _setState(ErmisBroadcasterState.broadcasting);
     } on CameraException catch (e) {
       await WakelockPlus.disable();
       _setError('Unable to start broadcast: ${e.description ?? e.code}');
+      await _safeUpdateLiveStatus(
+        streamId: refreshedStream.streamId,
+        isLive: false,
+      );
+      _activeStream = null;
       rethrow;
     } catch (e) {
       await WakelockPlus.disable();
       _setError('Unable to start broadcast: $e');
+      await _safeUpdateLiveStatus(
+        streamId: refreshedStream.streamId,
+        isLive: false,
+      );
+      _activeStream = null;
       rethrow;
     }
   }
 
   Future<void> stop() async {
     final controller = _cameraController;
+    final String? activeStreamId = _activeStream?.streamId;
     if (controller == null) {
       await WakelockPlus.disable();
+      if (activeStreamId != null) {
+        await _safeUpdateLiveStatus(streamId: activeStreamId, isLive: false);
+        _activeStream = null;
+      }
       return;
     }
     if (controller.value.isStreamingVideoRtmp != true) {
       await WakelockPlus.disable();
+      if (activeStreamId != null) {
+        await _safeUpdateLiveStatus(streamId: activeStreamId, isLive: false);
+        _activeStream = null;
+      }
       if (controller.value.isInitialized == true) {
         _setState(ErmisBroadcasterState.ready);
       } else {
@@ -104,6 +141,10 @@ class ErmisBroadcasterController extends ChangeNotifier
     try {
       await controller.stopVideoStreaming();
       await WakelockPlus.disable();
+      if (activeStreamId != null) {
+        await _safeUpdateLiveStatus(streamId: activeStreamId, isLive: false);
+        _activeStream = null;
+      }
       _setState(
         controller.value.isInitialized == true
             ? ErmisBroadcasterState.ready
@@ -112,10 +153,18 @@ class ErmisBroadcasterController extends ChangeNotifier
     } on CameraException catch (e) {
       await WakelockPlus.disable();
       _setError('Unable to stop broadcast: ${e.description ?? e.code}');
+      if (activeStreamId != null) {
+        await _safeUpdateLiveStatus(streamId: activeStreamId, isLive: false);
+        _activeStream = null;
+      }
       rethrow;
     } catch (e) {
       await WakelockPlus.disable();
       _setError('Unable to stop broadcast: $e');
+      if (activeStreamId != null) {
+        await _safeUpdateLiveStatus(streamId: activeStreamId, isLive: false);
+        _activeStream = null;
+      }
       rethrow;
     }
   }
@@ -290,5 +339,28 @@ class ErmisBroadcasterController extends ChangeNotifier
   void _setError(String message) {
     _lastError = message;
     _setState(ErmisBroadcasterState.error);
+  }
+
+  Future<ErmisStreamInfo> _updateLiveStatus({
+    required String streamId,
+    required bool isLive,
+  }) {
+    return _api.updateStream(
+      streamId: streamId,
+      request: ErmisStreamUpdateRequest(isLive: isLive),
+    );
+  }
+
+  Future<void> _safeUpdateLiveStatus({
+    required String streamId,
+    required bool isLive,
+  }) async {
+    try {
+      await _updateLiveStatus(streamId: streamId, isLive: isLive);
+    } catch (e) {
+      config.logger?.call(
+        '[ErmisBroadcasterController] Failed to update live status: $e',
+      );
+    }
   }
 }

@@ -111,9 +111,16 @@ class _ErmisDemoHomeState extends State<ErmisDemoHome> {
   }
 
   void _openBroadcaster(ErmisStreamInfo stream) {
+    final player = _player;
+    if (player == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please configure token first')),
+      );
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BroadcastPage(streamInfo: stream, player: _player),
+        builder: (_) => BroadcastPage(streamInfo: stream, player: player),
       ),
     );
   }

@@ -21,12 +21,10 @@ class ErmisStreamPlayer {
   }
 
   ErmisBroadcasterController broadcaster() {
-    return ErmisBroadcasterController(config: config);
+    return ErmisBroadcasterController(config: config, api: _api);
   }
 
-  Future<ErmisStreamInfo> createStream({
-    required String streamName,
-  }) {
+  Future<ErmisStreamInfo> createStream({required String streamName}) {
     return _api.createStream(streamName: streamName);
   }
 
@@ -34,10 +32,7 @@ class ErmisStreamPlayer {
     ErmisStreamListQuery? query,
     ErmisStreamListConditions? conditions,
   }) {
-    return _api.listStreams(
-      query: query,
-      conditions: conditions,
-    );
+    return _api.listStreams(query: query, conditions: conditions);
   }
 
   Future<ErmisStreamInfo> updateStream({
