@@ -54,13 +54,14 @@ import 'package:ermis_stream_player/ermis_stream_player.dart';
 final ermis = ErmisStreamPlayer(
   config: ErmisStreamConfig(
     apiBaseUrl: Uri.parse('https://api.your-domain.com'),
+    streamBaseUrl: Uri.parse('rtmps://streaming.your-domain.com:1935'),
     timeout: const Duration(seconds: 30),
     logger: (msg) => debugPrint('[Ermis] $msg'),
   ),
 );
 ```
 
-`ErmisStreamConfig` chỉ lưu thông tin để dùng trong tương lai; hiện tại controller chưa gọi network từ config nhưng bạn có thể truyền trước để đảm bảo tương thích khi SDK mở rộng.
+`ErmisStreamConfig` chỉ lưu thông tin để dùng trong tương lai; hiện tại controller chưa gọi network từ config nhưng bạn có thể truyền trước để đảm bảo tương thích khi SDK mở rộng. Thuộc tính `streamBaseUrl` được sử dụng khi phát livestream RTMP để dựng endpoint dạng `BASE_SERVER_URL/app_name/stream_key`.
 
 ---
 
@@ -82,6 +83,7 @@ final streamInfo = await ermis.createStream(
 
 print('Stream ID: ${streamInfo.streamId}');
 print('Watch link: ${streamInfo.link}');
+print('Stream key: ${streamInfo.streamKey}');
 ```
 
 - Nếu API trả JSON `{ "error_code": 401, "message": "Unauthorized" }`, SDK sẽ ném `ErmisStreamApiException`.
@@ -182,10 +184,8 @@ Future<void> _init() async {
 }
 
 Future<void> startBroadcast() async {
-  await broadcaster.start(
-    ingestUrl: 'rtmps://streaming.ermis.network:1939/Ermis-streaming',
-    streamKey: 'stream-key',
-  );
+  // streamInfo lấy từ API create/list stream.
+  await broadcaster.start(streamInfo: streamInfo);
 }
 
 Future<void> stopBroadcast() => broadcaster.stop();
@@ -231,7 +231,7 @@ flutter run
 
 Tab “Viewer” sử dụng `ErmisViewerController` + `ErmisStreamPlayerView`.
 
-Tab “Broadcaster” dùng `ErmisBroadcasterController` + `ErmisBroadcasterPreview`, kèm input ingest + stream key.
+Tab “Broadcaster” dùng `ErmisBroadcasterController` + `ErmisBroadcasterPreview`, tự động dựng ingest từ `ErmisStreamInfo` và `streamBaseUrl` cấu hình sẵn.
 
 ---
 

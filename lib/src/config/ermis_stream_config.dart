@@ -5,6 +5,7 @@ typedef ErmisAuthTokenProvider = FutureOr<String> Function();
 
 class ErmisStreamConfig {
   final Uri? apiBaseUrl;
+  final Uri? streamBaseUrl;
   final Map<String, String>? defaultHeaders;
   final Duration? timeout;
   final ErmisLogger? logger;
@@ -13,6 +14,7 @@ class ErmisStreamConfig {
 
   const ErmisStreamConfig({
     this.apiBaseUrl,
+    this.streamBaseUrl,
     this.defaultHeaders,
     this.timeout,
     this.logger,

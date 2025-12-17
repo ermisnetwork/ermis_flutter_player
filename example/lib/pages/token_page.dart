@@ -3,28 +3,41 @@ import 'package:flutter/material.dart';
 class TokenPage extends StatefulWidget {
   const TokenPage({
     super.key,
-    required this.initialBaseUrl,
+    required this.initialApiBaseUrl,
+    required this.initialStreamBaseUrl,
     required this.initialToken,
     required this.onSaved,
   });
 
-  final String initialBaseUrl;
+  final String initialApiBaseUrl;
+  final String initialStreamBaseUrl;
   final String? initialToken;
-  final void Function({required String baseUrl, required String token}) onSaved;
+  final void Function({
+    required String apiBaseUrl,
+    required String streamBaseUrl,
+    required String token,
+  })
+  onSaved;
 
   @override
   State<TokenPage> createState() => _TokenPageState();
 }
 
 class _TokenPageState extends State<TokenPage> {
-  late final TextEditingController _baseUrlController;
+  late final TextEditingController _apiBaseUrlController;
+  late final TextEditingController _streamBaseUrlController;
   late final TextEditingController _tokenController;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _baseUrlController = TextEditingController(text: widget.initialBaseUrl);
+    _apiBaseUrlController = TextEditingController(
+      text: widget.initialApiBaseUrl,
+    );
+    _streamBaseUrlController = TextEditingController(
+      text: widget.initialStreamBaseUrl,
+    );
     _tokenController = TextEditingController(
       text:
           widget.initialToken ??
@@ -35,8 +48,11 @@ class _TokenPageState extends State<TokenPage> {
   @override
   void didUpdateWidget(TokenPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialBaseUrl != widget.initialBaseUrl) {
-      _baseUrlController.text = widget.initialBaseUrl;
+    if (oldWidget.initialApiBaseUrl != widget.initialApiBaseUrl) {
+      _apiBaseUrlController.text = widget.initialApiBaseUrl;
+    }
+    if (oldWidget.initialStreamBaseUrl != widget.initialStreamBaseUrl) {
+      _streamBaseUrlController.text = widget.initialStreamBaseUrl;
     }
     if (oldWidget.initialToken != widget.initialToken) {
       _tokenController.text = widget.initialToken ?? '';
@@ -45,13 +61,15 @@ class _TokenPageState extends State<TokenPage> {
 
   @override
   void dispose() {
-    _baseUrlController.dispose();
+    _apiBaseUrlController.dispose();
+    _streamBaseUrlController.dispose();
     _tokenController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    final baseUrl = _baseUrlController.text.trim();
+    final apiBaseUrl = _apiBaseUrlController.text.trim();
+    final streamBaseUrl = _streamBaseUrlController.text.trim();
     final token = _tokenController.text.trim();
     if (token.isEmpty) {
       ScaffoldMessenger.of(
@@ -61,7 +79,11 @@ class _TokenPageState extends State<TokenPage> {
     }
     setState(() => _saving = true);
     try {
-      widget.onSaved(baseUrl: baseUrl, token: token);
+      widget.onSaved(
+        apiBaseUrl: apiBaseUrl,
+        streamBaseUrl: streamBaseUrl,
+        token: token,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -81,9 +103,17 @@ class _TokenPageState extends State<TokenPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextField(
-            controller: _baseUrlController,
+            controller: _apiBaseUrlController,
             decoration: const InputDecoration(
               labelText: 'API base URL',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _streamBaseUrlController,
+            decoration: const InputDecoration(
+              labelText: 'Stream base URL (RTMP)',
               border: OutlineInputBorder(),
             ),
           ),

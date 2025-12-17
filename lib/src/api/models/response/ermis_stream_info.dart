@@ -10,6 +10,7 @@ class ErmisStreamInfo {
     required this.updatedAt,
     required this.isLive,
     required this.isPublished,
+    required this.streamKey,
   });
 
   final String streamId;
@@ -18,6 +19,7 @@ class ErmisStreamInfo {
   final String streamMethod;
   final String link;
   final String appName;
+  final String streamKey;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool isLive;
@@ -31,6 +33,7 @@ class ErmisStreamInfo {
       streamMethod: json['stream_method']?.toString() ?? '',
       link: json['link']?.toString() ?? '',
       appName: json['app_name']?.toString() ?? '',
+      streamKey: json['stream_key']?.toString() ?? '',
       createdAt: _parseDate(json['created_at']),
       updatedAt: _parseDate(json['updated_at']),
       isLive: json['is_live'] as bool? ?? false,

@@ -62,35 +62,38 @@ class _CreateStreamPageState extends State<CreateStreamPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Stream name',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _isSubmitting ? null : _createStream,
-            icon: const Icon(Icons.cloud_upload),
-            label: Text(_isSubmitting ? 'Creating...' : 'Create stream'),
-          ),
-          const SizedBox(height: 16),
-          if (_result != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(8),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create Stream')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Stream name',
+                border: OutlineInputBorder(),
               ),
-              child: Text(_result!, style: const TextStyle(fontSize: 14)),
             ),
-        ],
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _isSubmitting ? null : _createStream,
+              icon: const Icon(Icons.cloud_upload),
+              label: Text(_isSubmitting ? 'Creating...' : 'Create stream'),
+            ),
+            const SizedBox(height: 16),
+            if (_result != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(_result!, style: const TextStyle(fontSize: 14)),
+              ),
+          ],
+        ),
       ),
     );
   }

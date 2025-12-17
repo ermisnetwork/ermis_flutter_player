@@ -4,9 +4,9 @@ import 'package:ermis_stream_player/ermis_stream_player.dart';
 import 'package:flutter/material.dart';
 
 class BroadcastPage extends StatefulWidget {
-  const BroadcastPage({super.key, this.streamInfo, this.player});
+  const BroadcastPage({super.key, required this.streamInfo, this.player});
 
-  final ErmisStreamInfo? streamInfo;
+  final ErmisStreamInfo streamInfo;
   final ErmisStreamPlayer? player;
 
   @override
@@ -15,12 +15,6 @@ class BroadcastPage extends StatefulWidget {
 
 class _BroadcastPageState extends State<BroadcastPage> {
   final ErmisBroadcasterController _controller = ErmisBroadcasterController();
-  final TextEditingController _ingestController = TextEditingController(
-    text: 'rtmps://streaming.ermis.network:1939/Ermis-streaming',
-  );
-  final TextEditingController _streamKeyController = TextEditingController(
-    text: 'f198fc18-d5cb-4699-8225-03a2f9f60a03:4c6f28fff8160cfb',
-  );
 
   bool _isLoadingCamera = true;
   bool _isBusy = false;
@@ -78,19 +72,13 @@ class _BroadcastPageState extends State<BroadcastPage> {
   }
 
   Future<void> _startBroadcast() async {
-    final ingest = _ingestController.text.trim();
-    final streamKey = _streamKeyController.text.trim();
-    if (ingest.isEmpty || streamKey.isEmpty) {
-      setState(() => _status = 'Enter ingest and stream key');
-      return;
-    }
     setState(() {
       _isBusy = true;
       _status = 'Starting broadcast...';
     });
 
     try {
-      await _controller.start(ingestUrl: ingest, streamKey: streamKey);
+      await _controller.start(streamInfo: widget.streamInfo);
       if (!mounted) return;
       setState(() => _status = 'Broadcasting...');
       await _updateLiveStatus(true);
@@ -153,9 +141,9 @@ class _BroadcastPageState extends State<BroadcastPage> {
   }
 
   Future<void> _updateLiveStatus(bool isLive) async {
-    final stream = widget.streamInfo;
     final player = widget.player;
-    if (stream == null || player == null) return;
+    if (player == null) return;
+    final stream = widget.streamInfo;
     try {
       await player.updateStream(
         streamId: stream.streamId,
@@ -173,8 +161,6 @@ class _BroadcastPageState extends State<BroadcastPage> {
   void dispose() {
     _controller.removeListener(_handleControllerChanged);
     _controller.dispose();
-    _ingestController.dispose();
-    _streamKeyController.dispose();
     unawaited(_updateLiveStatus(false));
     super.dispose();
   }
@@ -189,111 +175,99 @@ class _BroadcastPageState extends State<BroadcastPage> {
         _controller.cameraController != null;
     final bool canStop = isBroadcasting && !_isBusy;
 
-    return Column(
-      children: [
-        Expanded(
-          child: Container(
-            color: Colors.black,
-            padding: const EdgeInsets.all(8),
-            child: Center(
-              child: ErmisBroadcasterPreview(controller: _controller),
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.streamInfo.streamName)),
+      body: Column(
+        children: [
+          Expanded(
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.all(8),
+              child: Center(
+                child: ErmisBroadcasterPreview(controller: _controller),
+              ),
             ),
           ),
-        ),
-        Container(
-          color: Colors.grey[200],
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          width: double.infinity,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Status: $_status',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              if (widget.streamInfo != null) ...[
-                const SizedBox(height: 4),
-                Text('Stream: ${widget.streamInfo!.streamName}'),
-              ],
-              if (_controller.lastError != null) ...[
-                const SizedBox(height: 4),
+          Container(
+            color: Colors.grey[200],
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'Error: ${_controller.lastError}',
-                  style: const TextStyle(color: Colors.red),
+                  'Status: $_status',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text('Stream: ${widget.streamInfo.streamName}'),
+                Text('ID: ${widget.streamInfo.streamId}'),
+                Text('App: ${widget.streamInfo.appName}'),
+                SelectableText('Stream key: ${widget.streamInfo.streamKey}'),
+                if (_controller.lastError != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Error: ${_controller.lastError}',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: canStart ? _startBroadcast : null,
+                        icon: const Icon(Icons.wifi_tethering),
+                        label: const Text('Start broadcast'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: canStop ? _stopBroadcast : null,
+                        icon: const Icon(Icons.stop),
+                        label: const Text('Stop'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed:
+                          _controller.cameraController != null
+                              ? _switchCamera
+                              : null,
+                      icon: const Icon(Icons.cameraswitch),
+                      label: const Text('Switch camera'),
+                    ),
+                    Row(
+                      children: [
+                        const Text('Audio'),
+                        Switch(
+                          value: _audioEnabled,
+                          onChanged:
+                              _controller.cameraController == null
+                                  ? null
+                                  : (value) => _toggleAudio(value),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
-              const SizedBox(height: 8),
-              TextField(
-                controller: _ingestController,
-                decoration: const InputDecoration(
-                  labelText: 'RTMP ingest',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _streamKeyController,
-                decoration: const InputDecoration(
-                  labelText: 'Stream key',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: canStart ? _startBroadcast : null,
-                      icon: const Icon(Icons.wifi_tethering),
-                      label: const Text('Start broadcast'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: canStop ? _stopBroadcast : null,
-                      icon: const Icon(Icons.stop),
-                      label: const Text('Stop'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton.icon(
-                    onPressed:
-                        _controller.cameraController != null
-                            ? _switchCamera
-                            : null,
-                    icon: const Icon(Icons.cameraswitch),
-                    label: const Text('Switch camera'),
-                  ),
-                  Row(
-                    children: [
-                      const Text('Audio'),
-                      Switch(
-                        value: _audioEnabled,
-                        onChanged:
-                            _controller.cameraController == null
-                                ? null
-                                : (value) => _toggleAudio(value),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

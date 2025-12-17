@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:rtmp_broadcaster/camera.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../api/models/response/ermis_stream_info.dart';
 import '../config/ermis_stream_config.dart';
 
 enum ErmisBroadcasterState {
@@ -52,10 +53,7 @@ class ErmisBroadcasterController extends ChangeNotifier
     await _initializeCameraController(_cameras[_selectedCameraIndex]);
   }
 
-  Future<void> start({
-    required String ingestUrl,
-    required String streamKey,
-  }) async {
+  Future<void> start({required ErmisStreamInfo streamInfo}) async {
     final controller = _cameraController;
     if (controller == null) {
       throw StateError('Call init() before starting a broadcast.');
@@ -67,10 +65,7 @@ class ErmisBroadcasterController extends ChangeNotifier
       return;
     }
 
-    final endpoint = _buildEndpoint(ingestUrl, streamKey);
-    if (endpoint == null) {
-      throw ArgumentError('Both ingestUrl and streamKey must be provided.');
-    }
+    final endpoint = _buildEndpoint(streamInfo);
 
     try {
       _lastError = null;
@@ -241,13 +236,24 @@ class ErmisBroadcasterController extends ChangeNotifier
     await controller.dispose();
   }
 
-  String? _buildEndpoint(String ingestUrl, String streamKey) {
-    final ingest = ingestUrl.trim().replaceAll(RegExp(r'/+$'), '');
-    final key = streamKey.trim();
-    if (ingest.isEmpty || key.isEmpty) {
-      return null;
+  String _buildEndpoint(ErmisStreamInfo streamInfo) {
+    final Uri? base = config.streamBaseUrl;
+    if (base == null) {
+      throw StateError(
+        'Configure ErmisStreamConfig.streamBaseUrl before broadcasting.',
+      );
     }
-    return '$ingest/$key';
+    final sanitizedBase = base.toString().trim().replaceAll(RegExp(r'/+$'), '');
+    final appName = streamInfo.appName.trim();
+    final streamKey = streamInfo.streamKey.trim();
+    if (appName.isEmpty || streamKey.isEmpty) {
+      throw ArgumentError(
+        'Stream info must contain non-empty appName and streamKey.',
+      );
+    }
+    final normalizedApp = appName.replaceAll(RegExp(r'^/+|/+$'), '');
+    final normalizedKey = streamKey.replaceAll(RegExp(r'^/+'), '');
+    return '$sanitizedBase/$normalizedApp/$normalizedKey';
   }
 
   void _handleCameraValueChanged() {
