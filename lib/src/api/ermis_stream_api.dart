@@ -19,17 +19,15 @@ class ErmisStreamApi {
 
   Future<ErmisStreamInfo> createStream({
     required String streamName,
-    required String authToken,
+    String? authToken,
     Uri? baseUrl,
   }) async {
     if (streamName.trim().isEmpty) {
       throw ArgumentError.value(streamName, 'streamName', 'Cannot be empty');
     }
 
-    final headers = <String, String>{
-      'Authorization':
-          authToken.startsWith('Bearer ') ? authToken : 'Bearer $authToken',
-    };
+    final token = await _resolveAuthToken(authToken);
+    final headers = <String, String>{'Authorization': token};
     final payload = <String, dynamic>{'stream_name': streamName};
 
     try {
@@ -57,15 +55,13 @@ class ErmisStreamApi {
   }
 
   Future<ErmisStreamListResponse> listStreams({
-    required String authToken,
+    String? authToken,
     ErmisStreamListQuery? query,
     ErmisStreamListConditions? conditions,
     Uri? baseUrl,
   }) async {
-    final headers = <String, String>{
-      'Authorization':
-          authToken.startsWith('Bearer ') ? authToken : 'Bearer $authToken',
-    };
+    final token = await _resolveAuthToken(authToken);
+    final headers = <String, String>{'Authorization': token};
     final payload = <String, dynamic>{
       'list_query': query?.toJson() ?? const ErmisStreamListQuery().toJson(),
       'conditions': conditions?.toJson() ?? <String, dynamic>{},
@@ -94,6 +90,20 @@ class ErmisStreamApi {
 
   void _log(String message) {
     config.logger?.call('[ErmisStreamApi] $message');
+  }
+
+  Future<String> _resolveAuthToken(String? token) async {
+    final String? providedToken =
+        token ?? await config.authTokenProvider?.call();
+    if (providedToken == null || providedToken.trim().isEmpty) {
+      throw StateError(
+        'Authentication token is required. '
+        'Provide authToken parameter or configure ErmisStreamConfig.authTokenProvider.',
+      );
+    }
+    return providedToken.startsWith('Bearer ')
+        ? providedToken
+        : 'Bearer ${providedToken.trim()}';
   }
 
   ErmisStreamApiException _mapDioException(DioException exception) {

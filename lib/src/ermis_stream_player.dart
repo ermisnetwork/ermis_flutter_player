@@ -25,7 +25,7 @@ class ErmisStreamPlayer {
 
   Future<ErmisStreamInfo> createStream({
     required String streamName,
-    required String authToken,
+    String? authToken,
     Uri? baseUrl,
   }) {
     return _api.createStream(
@@ -36,7 +36,7 @@ class ErmisStreamPlayer {
   }
 
   Future<ErmisStreamListResponse> listStreams({
-    required String authToken,
+    String? authToken,
     ErmisStreamListQuery? query,
     ErmisStreamListConditions? conditions,
     Uri? baseUrl,

@@ -72,12 +72,12 @@ SDK cung cấp tiện ích gọi API quản lý stream (hiện hỗ trợ tạo 
 final ermis = ErmisStreamPlayer(
   config: ErmisStreamConfig(
     apiBaseUrl: Uri.parse('https://daibo.ermis.network:9999'),
+    authTokenProvider: () async => jwtToken, // đăng ký 1 lần
   ),
 );
 
 final streamInfo = await ermis.createStream(
   streamName: 'tudt01',
-  authToken: jwtToken,
 );
 
 print('Stream ID: ${streamInfo.streamId}');
@@ -90,7 +90,6 @@ print('Watch link: ${streamInfo.link}');
 + Để lấy danh sách stream, gọi:
 ```dart
 final streams = await ermis.listStreams(
-  authToken: jwtToken,
   query: const ErmisStreamListQuery(page: 1, perPage: 20),
 );
 print('Total: ${streams.total}, first stream = ${streams.data.first.streamName}');
